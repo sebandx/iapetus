@@ -1,0 +1,39 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Build and Deploy to Firebase Hosting
+
+# Controls when the action will run.
+on:
+  push:
+    branches: [ main ] # Or 'master' depending on your repository's default branch
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      # Sets up Node.js for the build step
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Specify the node version your project uses
+
+      # Installs dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Builds the React/Next.js application for production
+      - name: Build
+        run: npm run build
+
+      # The action that handles deployment to Firebase Hosting
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live # Deploys to your live production channel
+          projectId: 'lithe-creek-462503-v4' # IMPORTANT: Replace with your GCP project ID
