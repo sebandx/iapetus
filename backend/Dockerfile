@@ -13,7 +13,7 @@ RUN npm install
 # Copy the rest of the application's source code
 COPY . .
 
-# Compile TypeScript to JavaScript using the build script
+# Compile TypeScript to JavaScript using the build script from package.json
 RUN npm run build
 
 # Your app binds to port 8080 so you need to tell Docker to expose it
