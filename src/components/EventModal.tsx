@@ -6,20 +6,29 @@ import React, { useState } from 'react';
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (title: string) => void;
+  onSave: (title: string, dateTime: Date, duration: number) => void; // Updated to pass duration
   selectedDate: Date | null;
 }
 
 const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, selectedDate }) => {
   const [title, setTitle] = useState('');
+  const [time, setTime] = useState('12:00');
+  const [duration, setDuration] = useState(60); // Add state for duration in minutes
 
   if (!isOpen || !selectedDate) return null;
 
   const handleSave = () => {
     if (title.trim()) {
-      onSave(title);
-      setTitle(''); // Reset title after saving
-      onClose();   // Close modal after saving
+      // Combine the selected date with the new time
+      const [hours, minutes] = time.split(':').map(Number);
+      const combinedDateTime = new Date(selectedDate);
+      combinedDateTime.setHours(hours, minutes, 0, 0); // Set seconds and ms to 0
+
+      onSave(title, combinedDateTime, duration); // Pass the duration
+      setTitle(''); // Reset title
+      setTime('12:00'); // Reset time
+      setDuration(60); // Reset duration
+      onClose();   // Close modal
     } else {
       alert('Please enter an event title.');
     }
@@ -32,28 +41,41 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, select
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
+      zIndex: 1000,
     },
     modal: {
       background: 'white',
       padding: '25px',
-      borderRadius: '8px',
+      borderRadius: '12px',
       width: '90%',
       maxWidth: '500px',
+      boxShadow: '0 5px 15px rgba(0,0,0,0.3)',
     },
     header: {
         marginBottom: '20px'
     },
+    inputContainer: {
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '20px',
+    },
     input: {
         width: '100%',
         padding: '10px',
-        marginBottom: '20px',
         borderRadius: '4px',
         border: '1px solid #ccc',
         boxSizing: 'border-box'
+    },
+    label: {
+        marginBottom: '5px',
+        display: 'block',
+        textAlign: 'left',
+        fontSize: '14px',
+        fontWeight: 500
     },
     buttonContainer: {
         display: 'flex',
@@ -82,13 +104,43 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, select
             <h2>Add New Study Event</h2>
             <p>Date: {selectedDate.toLocaleDateString()}</p>
         </div>
-        <input
-          type="text"
-          placeholder="Event Title (e.g., CS 135 Lecture)"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={styles.input}
-        />
+        
+        <div>
+          <label style={styles.label} htmlFor="event-title">Event Title</label>
+          <input
+            id="event-title"
+            type="text"
+            placeholder="e.g., CS 135 Lecture"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ ...styles.input, marginBottom: '20px' }}
+          />
+        </div>
+
+        <div style={styles.inputContainer}>
+            <div style={{width: '50%'}}>
+              <label style={styles.label} htmlFor="event-time">Start Time</label>
+              <input
+                id="event-time"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                style={styles.input}
+              />
+            </div>
+            <div style={{width: '50%'}}>
+              <label style={styles.label} htmlFor="event-duration">Duration (minutes)</label>
+              <input
+                id="event-duration"
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                style={styles.input}
+                min="1"
+              />
+            </div>
+        </div>
+
         <div style={styles.buttonContainer}>
             <button onClick={onClose} style={{...styles.button, ...styles.cancelButton}}>Cancel</button>
             <button onClick={handleSave} style={{...styles.button, ...styles.saveButton}}>Save Event</button>

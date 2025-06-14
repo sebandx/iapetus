@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import timeGridPlugin from '@fullcalendar/timegrid';
 import { db } from '../firebase';
 import { collection, addDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +13,8 @@ import EventModal from '../components/EventModal';
 interface CalendarEvent {
   id?: string;
   title: string;
-  start: Date | string;
+  start: Date;
+  end: Date;
 }
 
 const CalendarView = () => {
@@ -21,45 +23,44 @@ const CalendarView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // Listen for real-time updates to calendar events
   useEffect(() => {
     if (!currentUser) return;
 
     const calendarCollectionRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
     
-    // onSnapshot returns an unsubscribe function
     const unsubscribe = onSnapshot(calendarCollectionRef, (snapshot) => {
       const fetchedEvents = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
           id: doc.id,
           title: data.title,
-          start: (data.startTime as Timestamp).toDate(), // Convert Firestore Timestamp to Date
+          start: (data.startTime as Timestamp).toDate(),
+          end: (data.endTime as Timestamp).toDate(),
         };
       });
       setEvents(fetchedEvents);
     });
 
-    // Clean up the listener when the component unmounts
     return () => unsubscribe();
   }, [currentUser]);
 
 
-  // Handle clicking on a date to open the modal
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
     setIsModalOpen(true);
   };
 
-  // Handle saving a new event from the modal
-  const handleSaveEvent = async (title: string) => {
-    if (!currentUser || !selectedDate) return;
+  const handleSaveEvent = async (title: string, startTime: Date, duration: number) => {
+    if (!currentUser) return;
+
+    const endTime = new Date(startTime.getTime() + duration * 60000);
 
     try {
       const calendarCollectionRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
       await addDoc(calendarCollectionRef, {
         title: title,
-        startTime: Timestamp.fromDate(selectedDate), // Store as Firestore Timestamp
+        startTime: Timestamp.fromDate(startTime),
+        endTime: Timestamp.fromDate(endTime),
       });
     } catch (error) {
       console.error("Error adding document: ", error);
@@ -70,7 +71,6 @@ const CalendarView = () => {
   return (
     <div>
       <style>{`
-        /* Custom FullCalendar styles */
         .fc .fc-button-primary { 
           background-color: #4F46E5; 
           border-color: #4F46E5; 
@@ -78,16 +78,37 @@ const CalendarView = () => {
         .fc .fc-daygrid-day.fc-day-today {
           background-color: #EEF2FF;
         }
+        .fc-event {
+          background-color: #6366F1;
+          border-color: #4F46E5;
+        }
+        .fc .fc-timegrid-now-indicator-line {
+          border-color: #EF4444; /* Make the 'now' line red */
+        }
+        .fc .fc-timegrid-now-indicator-arrow {
+          border-top-color: #EF4444; /* Make the 'now' arrow red */
+        }
       `}</style>
       <h1>Calendar</h1>
-      <p>Click on a date to add a new study event.</p>
+      <p>Click on a date to add a new study event, or switch to week/day view to see event times.</p>
       
       <FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
+        plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
+        headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }}
+        initialView="timeGridWeek" // Changed default view to week
+        nowIndicator={true} // Add the red line for the current time
         events={events}
         dateClick={handleDateClick}
-        height="auto" // Adjusts height to content
+        height="auto"
+        eventTimeFormat={{
+          hour: 'numeric',
+          minute: '2-digit',
+          meridiem: 'short'
+        }}
       />
 
       <EventModal
