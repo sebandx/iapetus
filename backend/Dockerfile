@@ -5,9 +5,10 @@ FROM node:20
 WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json to the working directory
+# Copying these first takes advantage of Docker's layer caching.
 COPY package*.json ./
 
-# Install application dependencies
+# Install ALL dependencies, including devDependencies needed for the build
 RUN npm install
 
 # Copy the rest of the application's source code
@@ -16,8 +17,12 @@ COPY . .
 # Compile TypeScript to JavaScript using the build script from package.json
 RUN npm run build
 
+# Prune devDependencies to keep the final image lean and secure.
+# This removes packages like 'typescript' that are not needed to run the app.
+RUN npm prune --production
+
 # Your app binds to port 8080 so you need to tell Docker to expose it
 EXPOSE 8080
 
-# Define the command to run your app
+# Define the command to run your app using the compiled JavaScript
 CMD [ "node", "dist/index.js" ]
