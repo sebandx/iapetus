@@ -13,9 +13,8 @@ RUN npm install
 # Copy the rest of the application's source code
 COPY . .
 
-# Compile TypeScript to JavaScript
-# The 'tsc' command is provided by the 'typescript' package in your devDependencies
-RUN npm exec tsc -- -p tsconfig.json
+# Compile TypeScript to JavaScript using the build script
+RUN npm run build
 
 # Your app binds to port 8080 so you need to tell Docker to expose it
 EXPOSE 8080
