@@ -1,4 +1,3 @@
-// backend/Dockerfile
 # Use an official Node.js runtime as a parent image
 FROM node:20
 
@@ -15,7 +14,8 @@ RUN npm install
 COPY . .
 
 # Compile TypeScript to JavaScript
-RUN npm run tsc -- -p tsconfig.json
+# The 'tsc' command is provided by the 'typescript' package in your devDependencies
+RUN npm exec tsc -- -p tsconfig.json
 
 # Your app binds to port 8080 so you need to tell Docker to expose it
 EXPOSE 8080
