@@ -27,7 +27,7 @@ export const onCalendarEventCreate = onDocumentCreated("/users/{userId}/calendar
     }
 
     const query = eventData.title;
-    logger.info(`Querying RAG agent with title: "${query}"`);
+    logger.info(`Querying RAG agent: "${query}"`);
 
     // Retrieve the RAG Corpus ID from the environment variables you will set up.
     const ragCorpusId = process.env.RAG_CORPUS_ID;
