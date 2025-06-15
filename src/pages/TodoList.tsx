@@ -1,10 +1,9 @@
 // src/pages/TodoList.tsx
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import TaskItem from '../components/TaskItem'; // Import the new component
+import TaskItem from '../components/TaskItem';
 
-// Define the shape of a task object
 interface Task {
   id: string;
   title: string;
@@ -73,9 +72,16 @@ const TodoList = () => {
     }
   };
 
+  // Use useMemo to efficiently separate tasks into two lists.
+  // This will only re-calculate when the main 'tasks' array changes.
+  const pendingTasks = useMemo(() => tasks.filter(task => task.status === 'PENDING'), [tasks]);
+  const completedTasks = useMemo(() => tasks.filter(task => task.status === 'COMPLETED'), [tasks]);
+
   const styles = {
     container: { fontFamily: "'Inter', sans-serif" },
     title: { fontSize: '2rem', color: '#111827', marginBottom: '20px' },
+    sectionTitle: { fontSize: '1.5rem', color: '#374151', marginTop: '40px', borderBottom: '2px solid #E5E7EB', paddingBottom: '10px' },
+    emptyMessage: { color: '#6B7280', fontStyle: 'italic' },
   };
 
   if (loading) return <div>Loading tasks...</div>;
@@ -84,19 +90,31 @@ const TodoList = () => {
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Your To-do List</h1>
-      {tasks.length === 0 ? (
-        <p>No tasks found. Create a calendar event to automatically generate one!</p>
-      ) : (
-        // Map over the tasks and render a TaskItem for each one
-        tasks.map(task => (
-          <TaskItem 
-            key={task.id} 
-            task={task} 
-            onUpdate={handleUpdateTask} 
-            onDelete={handleDeleteTask} 
-          />
-        ))
-      )}
+
+      {/* --- PENDING TASKS SECTION --- */}
+      <section>
+        <h2 style={styles.sectionTitle}>Pending ({pendingTasks.length})</h2>
+        {pendingTasks.length === 0 ? (
+          <p style={styles.emptyMessage}>No pending tasks. Create a calendar event to automatically generate one!</p>
+        ) : (
+          pendingTasks.map(task => (
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
+          ))
+        )}
+      </section>
+
+      {/* --- COMPLETED TASKS SECTION --- */}
+      <section>
+        <h2 style={styles.sectionTitle}>Completed ({completedTasks.length})</h2>
+        {completedTasks.length === 0 ? (
+          <p style={styles.emptyMessage}>No tasks completed yet.</p>
+        ) : (
+          completedTasks.map(task => (
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
+          ))
+        )}
+      </section>
+
     </div>
   );
 };
