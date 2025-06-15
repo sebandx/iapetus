@@ -1,0 +1,102 @@
+# .github/workflows/deploy-services.yml
+
+name: Deploy Frontend, Backend, and Functions
+
+# This workflow triggers on any push to the main branch
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  # ======================================================================
+  #  Job 1: Deploy Frontend (Firebase Hosting)
+  # ======================================================================
+  deploy-frontend:
+    # This job will only run if there are changes in the 'src' directory
+    # or other root-level frontend configuration files.
+    if: |
+      contains(join(github.event.commits.*.modified, ' '), 'src/') ||
+      contains(join(github.event.commits.*.added, ' '), 'src/') ||
+      contains(join(github.event.commits.*.removed, ' '), 'src/') ||
+      contains(join(github.event.commits.*.modified, ' '), 'public/') ||
+      contains(join(github.event.commits.*.added, ' '), 'public/') ||
+      contains(join(github.event.commits.*.removed, ' '), 'public/')
+
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Frontend Dependencies
+        run: npm ci
+      - name: Build Frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: 'lithe-creek-462503-v4'
+
+  # ======================================================================
+  #  Job 2: Deploy Backend (Cloud Run)
+  # ======================================================================
+  deploy-backend:
+    # This job will only run if there are changes in the 'backend' directory.
+    if: |
+      contains(join(github.event.commits.*.modified, ' '), 'backend/') ||
+      contains(join(github.event.commits.*.added, ' '), 'backend/') ||
+      contains(join(github.event.commits.*.removed, ' '), 'backend/')
+
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}' # Assumes you create a GCP_SA_KEY secret
+      - id: 'deploy'
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: 'study-planner-api'
+          region: 'us-central1'
+          # Tell the action to look for the source code in the 'backend' folder
+          source: ./backend
+
+  # ======================================================================
+  #  Job 3: Deploy Functions (Cloud Functions for Firebase)
+  # ======================================================================
+  deploy-functions:
+    # This job will only run if there are changes in the 'functions' directory.
+    if: |
+      contains(join(github.event.commits.*.modified, ' '), 'functions/') ||
+      contains(join(github.event.commits.*.added, ' '), 'functions/') ||
+      contains(join(github.event.commits.*.removed, ' '), 'functions/')
+
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Function Dependencies
+        run: npm --prefix functions install
+      - name: Deploy to Firebase Functions
+        uses: FirebaseExtended/action-hosting-deploy@v0 # This action can deploy functions too
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: 'lithe-creek-462503-v4'
+          # Tell the action to only deploy functions
+          entrypoint: functions
