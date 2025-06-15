@@ -33,14 +33,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
 
   const styles: { [key: string]: React.CSSProperties } = {
     taskCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)', marginBottom: '15px', borderLeft: '5px solid #4F46E5', transition: 'opacity 0.3s' },
-    taskHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
+    taskHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }, // Added flexWrap and gap
     taskTitle: { margin: 0, fontSize: '1.2rem', color: '#1F2937' },
     detailsContainer: { maxHeight: isExpanded ? '1000px' : '0', overflow: 'hidden', transition: 'max-height 0.5s ease-in-out, padding 0.5s ease-in-out', paddingTop: isExpanded ? '10px' : '0' },
     taskDetails: { margin: '0 0 15px 0', color: '#4B5563', whiteSpace: 'pre-wrap', lineHeight: '1.6' },
     taskFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' },
     taskMeta: { display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#6B7280', alignItems: 'center' },
     tag: { padding: '4px 10px', borderRadius: '12px', fontWeight: 500, fontSize: '0.8rem' },
-    actions: { display: 'flex', gap: '10px' },
+    actions: { display: 'flex', gap: '10px', flexShrink: 0 }, // Prevent action buttons from shrinking
     button: { background: 'none', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: 'background-color 0.2s' },
     foldButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px', color: '#6B7280' },
   };
