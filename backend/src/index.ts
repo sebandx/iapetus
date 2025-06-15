@@ -165,36 +165,40 @@ app.delete('/tasks/:taskId', authenticate, async (req, res) => {
   }
 });
 
-// CREATE Event
+// --- CREATE Event Endpoint ---
 app.post('/events', authenticate, async (req, res) => {
-  // ... existing code ...
-  try {
-    const { user } = req as any;
-    const { title, startTime, endTime } = req.body;
-    if (!title || !startTime || !endTime) {
-      res.status(400).send({ message: 'Missing required event fields.' });
-      return;
+    try {
+        const { user } = req as any;
+        // Add courseId to the destructured body
+        const { title, startTime, endTime, courseId } = req.body;
+
+        if (!title || !startTime || !endTime) {
+            return res.status(400).send({ message: 'Missing required event fields.' });
+        }
+
+        const db = getFirestore();
+        const eventData = {
+            title,
+            startTime: new Date(startTime),
+            endTime: new Date(endTime),
+            courseId: courseId || null // Save courseId or null
+        };
+        const docRef = await db.collection('users').doc(user.uid).collection('calendarEvents').add(eventData);
+
+        res.status(201).send({ message: 'Event created successfully', eventId: docRef.id });
+    } catch (error) {
+        console.error("Error creating event:", error);
+        res.status(500).send({ message: 'Internal Server Error' });
     }
-    const db = getFirestore();
-    const eventData = {
-      title,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-    };
-    const docRef = await db.collection('users').doc(user.uid).collection('calendarEvents').add(eventData);
-    res.status(201).send({ message: 'Event created successfully', eventId: docRef.id });
-  } catch (error) {
-    console.error("Error creating event with error:", error);
-    res.status(500).send({ message: 'Internal Server Error' });
-  }
 });
 
-// --- NEW --- UPDATE Event
+// --- UPDATE Event Endpoint ---
 app.put('/events/:eventId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const { eventId } = req.params;
-        const { title, startTime, endTime } = req.body;
+        // Add courseId to the destructured body
+        const { title, startTime, endTime, courseId } = req.body; 
 
         if (!title || !startTime || !endTime) {
             return res.status(400).send({ message: 'Missing required event fields.' });
@@ -207,6 +211,7 @@ app.put('/events/:eventId', authenticate, async (req, res) => {
             title,
             startTime: new Date(startTime),
             endTime: new Date(endTime),
+            courseId: courseId || null // Save courseId or null
         });
 
         res.status(200).send({ message: 'Event updated successfully' });
@@ -216,7 +221,6 @@ app.put('/events/:eventId', authenticate, async (req, res) => {
     }
 });
 
-// --- NEW --- DELETE Event
 app.delete('/events/:eventId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;

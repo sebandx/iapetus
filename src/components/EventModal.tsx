@@ -2,45 +2,49 @@
 
 import React, { useState, useEffect } from 'react';
 
+// Define the shape of a Course object
+interface Course {
+  id: string;
+  name: string;
+}
+
 // Define the properties the modal will accept
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (title: string, dateTime: Date, duration: number, eventId: string | null) => void;
+  onSave: (title: string, dateTime: Date, duration: number, courseId: string, eventId: string | null) => void; // Added courseId
   onDelete: (eventId: string) => void;
-  existingEvent: { id: string; title: string; start: Date; } | null;
+  existingEvent: { id: string; title: string; start: Date; courseId?: string } | null;
   selectedDate: Date | null;
+  courses: Course[]; // Add a prop for the list of courses
 }
 
-const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDelete, existingEvent, selectedDate }) => {
+const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDelete, existingEvent, selectedDate, courses }) => {
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('12:00');
   const [duration, setDuration] = useState(60);
+  const [selectedCourseId, setSelectedCourseId] = useState(''); // State for the dropdown
 
-  // This hook now correctly sets the time when the modal opens.
   useEffect(() => {
     if (isOpen) {
         if (existingEvent) {
-            // If we are editing, populate the form with the event's data
             setTitle(existingEvent.title);
             const startTime = new Date(existingEvent.start);
             const hours = startTime.getHours().toString().padStart(2, '0');
             const minutes = startTime.getMinutes().toString().padStart(2, '0');
             setTime(`${hours}:${minutes}`);
-            // You can add logic to calculate and set duration if needed
+            setSelectedCourseId(existingEvent.courseId || ''); // Set the selected course
         } else if (selectedDate) {
-            // --- THIS IS THE FIX ---
-            // If creating a new event, use the time from the clicked date slot
             setTitle('');
             const clickedTime = new Date(selectedDate);
             const hours = clickedTime.getHours().toString().padStart(2, '0');
             const minutes = clickedTime.getMinutes().toString().padStart(2, '0');
             setTime(`${hours}:${minutes}`);
             setDuration(60);
+            setSelectedCourseId(''); // Reset course selection for new events
         }
     }
   }, [existingEvent, selectedDate, isOpen]);
-
 
   if (!isOpen) return null;
 
@@ -50,8 +54,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
       const [hours, minutes] = time.split(':').map(Number);
       const combinedDateTime = new Date(dateToUse);
       combinedDateTime.setHours(hours, minutes, 0, 0);
-
-      onSave(title, combinedDateTime, duration, existingEvent ? existingEvent.id : null);
+      onSave(title, combinedDateTime, duration, selectedCourseId, existingEvent ? existingEvent.id : null);
       onClose();
     } else {
       alert('Please enter an event title.');
@@ -69,7 +72,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
     overlay: { zIndex: 1000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center' },
     modal: { background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 5px 15px rgba(0,0,0,0.3)' },
     header: { marginBottom: '20px' },
-    input: { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' },
+    input: { width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', height: '42px' },
     label: { marginBottom: '5px', display: 'block', textAlign: 'left', fontSize: '14px', fontWeight: 500 },
     buttonContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginTop: '20px' },
     button: { padding: '10px 20px', borderRadius: '4px', border: 'none', cursor: 'pointer' },
@@ -87,10 +90,22 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
             <h2>{existingEvent ? 'Edit Study Event' : 'Add New Study Event'}</h2>
             {dateForDisplay && <p>Date: {dateForDisplay.toLocaleDateString()}</p>}
         </div>
+        
         <div>
           <label style={styles.label} htmlFor="event-title">Event Title</label>
           <input id="event-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} style={{ ...styles.input, marginBottom: '20px' }} />
         </div>
+
+        <div>
+            <label style={styles.label} htmlFor="course-select">Course (Optional)</label>
+            <select id="course-select" value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)} style={{...styles.input, marginBottom: '20px'}}>
+                <option value="">No Course</option>
+                {courses.map(course => (
+                    <option key={course.id} value={course.id}>{course.name}{course.code ? ` (${course.code})` : ''}</option>
+                ))}
+            </select>
+        </div>
+
         <div style={{display: 'flex', gap: '10px'}}>
             <div style={{width: '50%'}}>
               <label style={styles.label} htmlFor="event-time">Start Time</label>
@@ -101,6 +116,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
               <input id="event-duration" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10))} style={styles.input} min="1" />
             </div>
         </div>
+
         <div style={styles.buttonContainer}>
             <div>
                 {existingEvent && <button onClick={handleDelete} style={{...styles.button, ...styles.deleteButton}}>Delete</button>}
