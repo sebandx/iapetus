@@ -119,5 +119,5 @@ jobs:
             --entry-point=on_calendar_event_create \
             --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
             --trigger-event-filters="database=(default)" \
-            --trigger-event-filters-path-pattern="resource=projects/lithe-creek-462503-v4/databases/(default)/documents/users/{userId}/calendarEvents/{eventId}" \
+            --trigger-event-filters-path-pattern="document=users/{userId}/calendarEvents/{eventId}" \
             --set-env-vars="RAG_CORPUS=${{ secrets.RAG_CORPUS }}"
