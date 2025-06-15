@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import { EventClickArg } from '@fullcalendar/core';
+// --- THIS IS THE FIX ---
+// Import the type directly from the core package
+import { type EventClickArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -12,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import EventModal from '../components/EventModal';
 
 interface CalendarEvent {
-  id: string; // id is now mandatory
+  id: string;
   title: string;
   start: Date;
   end: Date;
@@ -25,7 +27,6 @@ const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  // Fetching logic remains the same
   useEffect(() => {
     if (!currentUser) return;
     const calendarCollectionRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
@@ -41,14 +42,12 @@ const CalendarView = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Handle clicking on an empty date slot
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
-    setSelectedEvent(null); // Ensure we're not editing
+    setSelectedEvent(null);
     setIsModalOpen(true);
   };
 
-  // --- NEW --- Handle clicking on an existing event
   const handleEventClick = (clickInfo: EventClickArg) => {
     setSelectedEvent({
         id: clickInfo.event.id,
@@ -64,7 +63,6 @@ const CalendarView = () => {
     setSelectedEvent(null);
   }
 
-  // --- UPDATED --- Handles both creating and updating events
   const handleSaveEvent = async (title: string, startTime: Date, duration: number, eventId: string | null) => {
     if (!currentUser) return;
 
@@ -72,7 +70,6 @@ const CalendarView = () => {
     const eventData = { title, startTime: startTime.toISOString(), endTime: endTime.toISOString() };
     const token = await currentUser.getIdToken();
     
-    // Determine if we are updating or creating
     const isUpdate = eventId !== null;
     const url = isUpdate ? `${import.meta.env.VITE_API_URL}/events/${eventId}` : `${import.meta.env.VITE_API_URL}/events`;
     const method = isUpdate ? 'PUT' : 'POST';
@@ -97,7 +94,6 @@ const CalendarView = () => {
     }
   };
 
-  // --- NEW --- Handles deleting an event
   const handleDeleteEvent = async (eventId: string) => {
     if (!currentUser) return;
     
@@ -121,7 +117,6 @@ const CalendarView = () => {
   return (
     <div>
       <style>{`
-        /* Styles remain the same */
         .fc-event { cursor: pointer; }
         .fc .fc-button-primary { background-color: #4F46E5; border-color: #4F46E5; }
         .fc .fc-daygrid-day.fc-day-today { background-color: #EEF2FF; }
@@ -139,7 +134,7 @@ const CalendarView = () => {
         nowIndicator={true}
         events={events}
         dateClick={handleDateClick}
-        eventClick={handleEventClick} // Add this line
+        eventClick={handleEventClick}
         height="auto"
         eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
       />
