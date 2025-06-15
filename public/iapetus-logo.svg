@@ -1,0 +1,30 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- 
+    Iapetus - AI Study Planner Logo
+    Combines themes of learning (book), planning (orbits), and the two-tone moon Iapetus.
+  -->
+  <defs>
+    <!-- Gradient for the main elements -->
+    <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366F1; stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#818CF8; stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Group for all elements -->
+  <g transform="translate(128, 128) rotate(-15)">
+    <!-- Orbit Paths -->
+    <ellipse cx="0" cy="0" rx="90" ry="40" fill="none" stroke="url(#logo-gradient)" stroke-width="8" transform="rotate(30)" />
+    <ellipse cx="0" cy="0" rx="110" ry="60" fill="none" stroke="url(#logo-gradient)" stroke-width="8" transform="rotate(-40)" opacity="0.6" />
+
+    <!-- Central "Book" Element -->
+    <g transform="rotate(15)">
+        <path d="M -50 -60 L -10 -60 L -10 60 L -50 60 Q -60 0 -50 -60 Z" fill="url(#logo-gradient)" />
+        <path d="M 50 -60 L 10 -60 L 10 60 L 50 60 Q 60 0 50 -60 Z" fill="url(#logo-gradient)" />
+    </g>
+
+    <!-- Orbiting "Moons" representing the two-tone Iapetus -->
+    <circle cx="-95" cy="-55" r="12" fill="#4B5563" /> <!-- Dark Moon -->
+    <circle cx="90" cy="25" r="12" fill="#E5E7EB" /> <!-- Light Moon -->
+  </g>
+</svg>
