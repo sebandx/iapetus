@@ -5,3 +5,5 @@ functions-framework==3.*
 google-cloud-aiplatform
 google-cloud-firestore
 firebase-admin
+
+google-cloud-event
