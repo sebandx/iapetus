@@ -6,12 +6,9 @@ import React, { useState, useEffect } from 'react';
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // onSave can now handle both creating and updating
   onSave: (title: string, dateTime: Date, duration: number, eventId: string | null) => void;
   onDelete: (eventId: string) => void;
-  // This will contain the event data if we are editing
   existingEvent: { id: string; title: string; start: Date; } | null;
-  // This is the date clicked on for new events
   selectedDate: Date | null;
 }
 
@@ -20,24 +17,29 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
   const [time, setTime] = useState('12:00');
   const [duration, setDuration] = useState(60);
 
-  // When the modal opens, check if we are editing an existing event.
-  // If so, populate the form with its data.
+  // This hook now correctly sets the time when the modal opens.
   useEffect(() => {
-    if (existingEvent) {
-      setTitle(existingEvent.title);
-      // Format the start time for the time input
-      const startTime = new Date(existingEvent.start);
-      const hours = startTime.getHours().toString().padStart(2, '0');
-      const minutes = startTime.getMinutes().toString().padStart(2, '0');
-      setTime(`${hours}:${minutes}`);
-      // You would add duration logic here if it were saved
-    } else {
-      // If creating a new event, reset the form
-      setTitle('');
-      setTime('12:00');
-      setDuration(60);
+    if (isOpen) {
+        if (existingEvent) {
+            // If we are editing, populate the form with the event's data
+            setTitle(existingEvent.title);
+            const startTime = new Date(existingEvent.start);
+            const hours = startTime.getHours().toString().padStart(2, '0');
+            const minutes = startTime.getMinutes().toString().padStart(2, '0');
+            setTime(`${hours}:${minutes}`);
+            // You can add logic to calculate and set duration if needed
+        } else if (selectedDate) {
+            // --- THIS IS THE FIX ---
+            // If creating a new event, use the time from the clicked date slot
+            setTitle('');
+            const clickedTime = new Date(selectedDate);
+            const hours = clickedTime.getHours().toString().padStart(2, '0');
+            const minutes = clickedTime.getMinutes().toString().padStart(2, '0');
+            setTime(`${hours}:${minutes}`);
+            setDuration(60);
+        }
     }
-  }, [existingEvent, isOpen]);
+  }, [existingEvent, selectedDate, isOpen]);
 
 
   if (!isOpen) return null;
