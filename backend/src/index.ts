@@ -23,7 +23,9 @@ const authenticate = async (req: express.Request, res: express.Response, next: e
   const { authorization } = req.headers;
 
   if (!authorization || !authorization.startsWith('Bearer ')) {
-    return res.status(401).send({ message: 'Unauthorized: No token provided.' });
+    // Don't 'return' the response, just send it.
+    res.status(401).send({ message: 'Unauthorized: No token provided.' });
+    return;
   }
 
   const idToken = authorization.split('Bearer ')[1];
@@ -34,7 +36,8 @@ const authenticate = async (req: express.Request, res: express.Response, next: e
     next();
   } catch (error) {
     console.error('Error verifying token:', error);
-    return res.status(403).send({ message: 'Forbidden: Invalid token.' });
+    // Don't 'return' the response, just send it.
+    res.status(403).send({ message: 'Forbidden: Invalid token.' });
   }
 };
 
@@ -53,7 +56,9 @@ app.post('/events', authenticate, async (req, res) => {
     const { title, startTime, endTime } = req.body; // Event details from the request
 
     if (!title || !startTime || !endTime) {
-      return res.status(400).send({ message: 'Missing required event fields.' });
+      // Don't 'return' the response, just send it.
+      res.status(400).send({ message: 'Missing required event fields.' });
+      return;
     }
 
     const db = getFirestore();
