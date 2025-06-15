@@ -4,7 +4,7 @@ from cloudevents.http import CloudEvent
 import firebase_admin
 from firebase_admin import firestore
 import datetime
-
+from google.events.cloud.firestore_v1.types import DocumentEventData
 # --- Corrected Imports ---
 # Import the necessary classes from the Vertex AI SDK
 import vertexai
@@ -45,13 +45,14 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
-    # Use a safe method to get the payload and event title
-    firestore_payload = cloud_event.data.get("value", {})
-    if not firestore_payload:
-        print("Error: Event data is missing 'value' field.")
-        return
-        
-    event_title = firestore_payload.get("fields", {}).get("title", {}).get("stringValue")
+    # --- THE FIX ---
+    # The 'data' payload is a Protobuf message. We decode it into a structured object.
+    firestore_payload = DocumentEventData()
+    firestore_payload._pb.ParseFromString(cloud_event.data)
+
+    # Now we can safely access the fields from the decoded payload
+    event_title = firestore_payload.value.fields["title"].string_value
+
 
     if not event_title:
         print("Event created without a title. Exiting function.")
