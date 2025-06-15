@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import CalendarView from './pages/CalendarView';
 // Import the new, functional TodoList component
 import TodoList from './pages/TodoList';
+import Courses from './pages/Courses';
 
 function App() {
   return (
