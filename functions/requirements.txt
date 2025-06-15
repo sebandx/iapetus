@@ -7,5 +7,4 @@ google-cloud-firestore
 firebase-admin
 
 # Required to decode Firestore event payloads (Protobuf messages)
-google-cloud-firestore
 google-events
