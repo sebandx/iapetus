@@ -47,24 +47,25 @@ app.get('/', (req, res) => {
 
 app.post('/events', authenticate, async (req, res) => {
   try {
-    const { user } = req as any;
-    const { title, startTime, endTime } = req.body;
+    res.send('Hello from the Study Planner Backend!');
+    // const { user } = req as any;
+    // const { title, startTime, endTime } = req.body;
 
-    if (!title || !startTime || !endTime) {
-      res.status(400).send({ message: 'Missing required event fields.' });
-      return;
-    }
+    // if (!title || !startTime || !endTime) {
+    //   res.status(400).send({ message: 'Missing required event fields.' });
+    //   return;
+    // }
 
-    const db = getFirestore();
-    const eventData = {
-      title,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-    };
+    // const db = getFirestore();
+    // const eventData = {
+    //   title,
+    //   startTime: new Date(startTime),
+    //   endTime: new Date(endTime),
+    // };
 
-    const docRef = await db.collection('users').doc(user.uid).collection('calendarEvents').add(eventData);
+    // const docRef = await db.collection('users').doc(user.uid).collection('calendarEvents').add(eventData);
 
-    res.status(201).send({ message: 'Event created successfully', eventId: docRef.id });
+    // res.status(201).send({ message: 'Event created successfully', eventId: docRef.id });
   } catch (error) {
     console.error('Error creating event:', error);
     res.status(500).send({ message: 'Internal Server Error' });
