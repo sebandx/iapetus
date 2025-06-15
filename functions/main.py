@@ -50,7 +50,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print("RAG_CORPUS environment variable not set. Exiting function.")
         return
 
-    print(f"Querying RAG agent with title: '{event_title}'")
+    print(f"Querying RAG agent with title and date: '{event_title}'")
 
     try:
         # --- 2. Query the RAG Agent ---
