@@ -2,7 +2,9 @@
 functions-framework==3.*
 
 # Required for Firestore and Vertex AI integration
-google-cloud-aiplatform
+google-cloud-aiplatform = { extras = [
+    "agent-engines",
+], version = "^1.93.0" }
 google-cloud-firestore
 firebase-admin
 
