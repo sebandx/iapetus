@@ -7,17 +7,12 @@ from google.cloud import aiplatform
 import datetime
 
 # --- Initialization ---
-# Initialize the Firebase Admin app. This is done once when the function instance starts.
-# When running on Google Cloud, credentials are automatically discovered.
 firebase_admin.initialize_app()
 
-# Get the project and location from environment variables provided by the runtime.
 PROJECT_ID = os.environ.get("GCLOUD_PROJECT", "lithe-creek-462503-v4")
 LOCATION = os.environ.get("LOCATION", "us-central1")
-# Get the RAG Corpus ID from an environment variable you will set during deployment.
 RAG_CORPUS = os.environ.get("RAG_CORPUS")
 
-# Initialize the Vertex AI client.
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 
@@ -29,12 +24,13 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     """
     print("Function triggered by a new calendar event.")
 
-    # --- 1. Extract Data from the Firestore Event ---
-    # The event data is a complex object; we extract the user and event IDs from the path.
-    resource_string = cloud_event["subject"]
-    parts = resource_string.split('/documents/')[1].split('/')
-    user_id = parts[1]
-    event_id = parts[3]
+    params = cloud_event.params
+    user_id = params.get("userId")
+    event_id = params.get("eventId")
+
+    if not user_id or not event_id:
+        print(f"Could not extract userId or eventId from params: {params}")
+        return
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
@@ -50,10 +46,10 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print("RAG_CORPUS environment variable not set. Exiting function.")
         return
 
-    print(f"Querying RAG agent: '{event_title}'")
+    print(f"Querying RAG agent with title: '{event_title}'")
 
     try:
-        # --- 2. Query the RAG Agent ---
+        # --- Query the RAG Agent ---
         model = aiplatform.gapic.GenerativeModel("gemini-1.5-flash-001")
         
         response = model.generate_content(
@@ -72,17 +68,16 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         rag_response_text = response.candidates[0].content.parts[0].text
         print(f"Received response from RAG agent: {rag_response_text}")
 
-        # --- 3. Write the New To-Do Task to Firestore ---
+        # --- Write the New To-Do Task to Firestore ---
         db = firestore.client()
         
-        # Create a new task document in the user's 'tasks' subcollection.
         tasks_collection = db.collection("users").document(user_id).collection("tasks")
         tasks_collection.add({
             "title": f"Review prerequisites for: {event_title}",
             "details": rag_response_text,
             "status": "PENDING",
             "relatedCalendarEventId": event_id,
-            "dueDate": datetime.datetime.now(datetime.timezone.utc), # Set due date to now
+            "dueDate": datetime.datetime.now(datetime.timezone.utc),
             "priority": "MEDIUM",
         })
 
