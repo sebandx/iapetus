@@ -4,11 +4,18 @@ from cloudevents.http import CloudEvent
 import firebase_admin
 from firebase_admin import firestore
 from google.cloud import aiplatform
-
-# --- NEW: Import the specific message type for decoding Firestore event data ---
 from google.events.cloud.firestore_v1.types import DocumentEventData
-
 import datetime
+
+# Import the necessary classes directly from their correct modules
+from google.cloud.aiplatform.generative_models import (
+    GenerativeModel,
+    Tool,
+    Part,
+    Rag,
+    RagResource,
+    Retrieval,
+)
 
 # --- Initialization ---
 firebase_admin.initialize_app()
@@ -62,23 +69,29 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     print(f"Querying RAG agent with title: '{event_title}'")
 
     try:
-        # --- Query the RAG Agent ---
-        model = aiplatform.gapic.GenerativeModel("gemini-1.5-flash-001")
+        # --- Corrected RAG Agent Query ---
+        # Initialize the model correctly
+        model = GenerativeModel("gemini-1.5-flash-001")
+        
+        # Build the RAG retrieval tool correctly, as shown in the sample
+        rag_retrieval_tool = Tool(
+            retrieval=Retrieval(
+                rag=Rag(
+                    rag_resources=[
+                        RagResource(rag_corpus=RAG_CORPUS)
+                    ]
+                )
+            )
+        )
+
+        prompt = f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
         
         response = model.generate_content(
-            f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list.",
-            tools=[aiplatform.gapic.Tool(
-                retrieval=aiplatform.gapic.Retrieval(
-                    rag=aiplatform.gapic.Rag(
-                        rag_resources=[
-                            aiplatform.gapic.RagResource(rag_corpus=RAG_CORPUS)
-                        ]
-                    )
-                )
-            )]
+            [Part.from_text(prompt)],
+            tools=[rag_retrieval_tool],
         )
         
-        rag_response_text = response.candidates[0].content.parts[0].text
+        rag_response_text = response.text
         print(f"Received response from RAG agent: {rag_response_text}")
 
         # --- Write the New To-Do Task to Firestore ---
