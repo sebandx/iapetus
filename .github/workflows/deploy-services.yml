@@ -108,12 +108,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      # Install dependencies inside the 'functions' directory
       - name: Install Function Dependencies
         run: npm --prefix functions ci
+      # Build the TypeScript code inside the 'functions' directory
+      - name: Build Functions
+        run: npm --prefix functions run build
       - name: Deploy to Firebase Functions
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           projectId: 'lithe-creek-462503-v4'
-          entrypoint: functions
+          # --- THE FIX ---
+          # Use 'target' to specify what to deploy. This corresponds to 'firebase deploy --only functions'
+          target: functions
