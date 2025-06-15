@@ -6,4 +6,5 @@ google-cloud-aiplatform
 google-cloud-firestore
 firebase-admin
 
-google-cloud-event
+# Required to decode Firestore event payloads (Protobuf messages)
+google-cloudevents
