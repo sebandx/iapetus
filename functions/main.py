@@ -84,8 +84,14 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         # 3. Iterate through the stream to build the full text response
         agent_response_text = ""
         for event in response_stream:
-            if event.type == "content" and event.content.parts:
-                agent_response_text += event.content.parts[0].text
+            # Check for the 'content' key, which indicates a text part from the agent
+            if "content" in event and event.get("content", {}).get("parts"):
+                agent_response_text += event["content"]["parts"][0].get("text", "")
+        
+        if not agent_response_text:
+            print("Agent returned an empty text response.")
+            return        
+
         
         if not agent_response_text:
             print("Agent returned an empty text response.")
