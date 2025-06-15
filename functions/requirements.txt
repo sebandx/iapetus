@@ -1,0 +1,7 @@
+# Required for Cloud Functions framework
+functions-framework==3.*
+
+# Required for Firestore and Vertex AI integration
+google-cloud-aiplatform
+google-cloud-firestore
+firebase-admin
