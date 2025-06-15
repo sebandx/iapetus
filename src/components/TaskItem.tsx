@@ -27,7 +27,9 @@ const ChevronUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" heigh
 
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  // --- THIS IS THE FIX ---
+  // The initial state of 'isExpanded' is now determined by the task's status.
+  const [isExpanded, setIsExpanded] = useState(task.status === 'PENDING');
 
   const styles: { [key: string]: React.CSSProperties } = {
     taskCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)', marginBottom: '15px', borderLeft: '5px solid #4F46E5', transition: 'opacity 0.3s' },
