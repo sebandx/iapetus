@@ -2,26 +2,44 @@
 
 name: Deploy Frontend, Backend, and Functions
 
-# This workflow triggers on any push to the main branch
 on:
   push:
     branches: [ main ]
 
 jobs:
   # ======================================================================
+  #  Job 0: Check for Path Changes
+  #  This job runs first and determines which services have changed.
+  # ======================================================================
+  changes:
+    runs-on: ubuntu-22.04
+    # Set outputs that other jobs can use
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      functions: ${{ steps.filter.outputs.functions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'src/**'
+              - 'public/**'
+              - 'index.html'
+              - 'vite.config.ts'
+            backend:
+              - 'backend/**'
+            functions:
+              - 'functions/**'
+
+  # ======================================================================
   #  Job 1: Deploy Frontend (Firebase Hosting)
   # ======================================================================
   deploy-frontend:
-    # This job will only run if there are changes in the 'src' directory
-    # or other root-level frontend configuration files.
-    if: |
-      contains(join(github.event.commits.*.modified, ' '), 'src/') ||
-      contains(join(github.event.commits.*.added, ' '), 'src/') ||
-      contains(join(github.event.commits.*.removed, ' '), 'src/') ||
-      contains(join(github.event.commits.*.modified, ' '), 'public/') ||
-      contains(join(github.event.commits.*.added, ' '), 'public/') ||
-      contains(join(github.event.commits.*.removed, ' '), 'public/')
-
+    needs: changes # This job depends on the 'changes' job
+    if: ${{ needs.changes.outputs.frontend == 'true' }} # Only runs if frontend files changed
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -52,37 +70,28 @@ jobs:
   #  Job 2: Deploy Backend (Cloud Run)
   # ======================================================================
   deploy-backend:
-    # This job will only run if there are changes in the 'backend' directory.
-    if: |
-      contains(join(github.event.commits.*.modified, ' '), 'backend/') ||
-      contains(join(github.event.commits.*.added, ' '), 'backend/') ||
-      contains(join(github.event.commits.*.removed, ' '), 'backend/')
-
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}' # Assumes you create a GCP_SA_KEY secret
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - id: 'deploy'
         uses: 'google-github-actions/deploy-cloudrun@v2'
         with:
           service: 'study-planner-api'
           region: 'us-central1'
-          # Tell the action to look for the source code in the 'backend' folder
           source: ./backend
 
   # ======================================================================
   #  Job 3: Deploy Functions (Cloud Functions for Firebase)
   # ======================================================================
   deploy-functions:
-    # This job will only run if there are changes in the 'functions' directory.
-    if: |
-      contains(join(github.event.commits.*.modified, ' '), 'functions/') ||
-      contains(join(github.event.commits.*.added, ' '), 'functions/') ||
-      contains(join(github.event.commits.*.removed, ' '), 'functions/')
-
+    needs: changes
+    if: ${{ needs.changes.outputs.functions == 'true' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -91,12 +100,11 @@ jobs:
         with:
           node-version: '20'
       - name: Install Function Dependencies
-        run: npm --prefix functions install
+        run: npm --prefix functions ci
       - name: Deploy to Firebase Functions
-        uses: FirebaseExtended/action-hosting-deploy@v0 # This action can deploy functions too
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           projectId: 'lithe-creek-462503-v4'
-          # Tell the action to only deploy functions
           entrypoint: functions
