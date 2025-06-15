@@ -23,30 +23,24 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     It queries a RAG agent and creates a corresponding to-do task in Firestore.
     """
     print("Function triggered by a new calendar event.")
+    print(f"Full CloudEvent object attributes: {cloud_event.get_attributes()}")
 
-    # --- ADDED FOR DEBUGGING ---
-    # Print the entire CloudEvent object to the logs to inspect its structure.
-    print(f"Full CloudEvent object: {cloud_event}")
-
-    # The 'subject' attribute contains the full resource path of the triggering document.
-    # e.g., 'firestore.googleapis.com/.../documents/users/USER_ID/calendarEvents/EVENT_ID'
     try:
-        subject = cloud_event["subject"]
-        print(f"Event Subject: {subject}")
-
-        # Split the string after '/documents/' to get the path parts
-        path_parts = subject.split('/documents/')[1].split('/')
+        # --- THE FIX ---
+        # Get the document path directly from the 'document' attribute, which is more reliable.
+        document_path = cloud_event["document"]
+        path_parts = document_path.split('/')
         
         # Expected structure: ['users', 'USER_ID', 'calendarEvents', 'EVENT_ID']
         if len(path_parts) >= 4 and path_parts[0] == 'users' and path_parts[2] == 'calendarEvents':
             user_id = path_parts[1]
             event_id = path_parts[3]
         else:
-            print(f"Error: Unexpected path structure in subject: {subject}")
+            print(f"Error: Unexpected path structure in document attribute: {document_path}")
             return
             
     except (IndexError, KeyError) as e:
-        print(f"Error: Could not parse user and event IDs from subject string: {cloud_event.get('subject', 'Not Found')}. Details: {e}")
+        print(f"Error: Could not parse user and event IDs from document attribute: {cloud_event.get('document', 'Not Found')}. Details: {e}")
         return
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
