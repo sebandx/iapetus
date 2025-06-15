@@ -5,8 +5,8 @@ import firebase_admin
 from firebase_admin import firestore
 import datetime
 from google.events.cloud.firestore_v1.types import DocumentEventData
-# --- Corrected Imports ---
-# Import the necessary classes from the Vertex AI SDK
+
+# --- Corrected Imports to match the working sample ---
 import vertexai
 # The 'agent_engines' module is now directly under the 'vertexai' namespace, not 'preview'.
 from vertexai import agent_engines
@@ -16,7 +16,6 @@ firebase_admin.initialize_app()
 
 PROJECT_ID = os.environ.get("GCLOUD_PROJECT", "lithe-creek-462503-v4")
 LOCATION = os.environ.get("LOCATION", "us-central1")
-# Get the Agent Engine ID from environment variables
 AGENT_ENGINE_ID = os.environ.get("AGENT_ENGINE_ID")
 
 vertexai.init(project=PROJECT_ID, location=LOCATION)
@@ -65,33 +64,24 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     print(f"Querying Agent Engine with title: '{event_title}', to agent: '{AGENT_ENGINE_ID}'")
 
     try:
-        # --- Corrected Agent Engine Query ---
-        # 1. Get a reference to your deployed agent
+        # --- Corrected Agent Engine Query based on your working script ---
         agent = agent_engines.get(AGENT_ENGINE_ID)
-        
         print(f"Querying Agent Engine: '{agent}'")
 
-        # 2. Use stream_query, which is the correct method.
-        #    For a stateless function, the session_id can be any unique string.
+
+        # Use stream_query, which is the correct method for Agent Engine
         response_stream = agent.stream_query(
             query=f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list.",
-            session_id=event_id, # Use event_id for a unique session
+            session_id=event_id, # Use event_id for a unique session for this stateless call
             user_id=user_id
         )
 
-        print(f"Received response_stream from Agent Engine: {response_stream}")
-        
-        # 3. Iterate through the stream to build the full text response
+        # Iterate through the stream to build the full text response
         agent_response_text = ""
         for event in response_stream:
             # Check for the 'content' key, which indicates a text part from the agent
             if "content" in event and event.get("content", {}).get("parts"):
                 agent_response_text += event["content"]["parts"][0].get("text", "")
-        
-        if not agent_response_text:
-            print("Agent returned an empty text response.")
-            return        
-
         
         if not agent_response_text:
             print("Agent returned an empty text response.")
@@ -101,7 +91,6 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
         # --- Write the New To-Do Task to Firestore ---
         db = firestore.client()
-        
         tasks_collection = db.collection("users").document(user_id).collection("tasks")
         tasks_collection.add({
             "title": f"Review prerequisites for: {event_title}",
