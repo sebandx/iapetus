@@ -24,12 +24,29 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     """
     print("Function triggered by a new calendar event.")
 
-    params = cloud_event.params
-    user_id = params.get("userId")
-    event_id = params.get("eventId")
+    # --- ADDED FOR DEBUGGING ---
+    # Print the entire CloudEvent object to the logs to inspect its structure.
+    print(f"Full CloudEvent object: {cloud_event}")
 
-    if not user_id or not event_id:
-        print(f"Could not extract userId or eventId from params: {params}")
+    # The 'subject' attribute contains the full resource path of the triggering document.
+    # e.g., 'firestore.googleapis.com/.../documents/users/USER_ID/calendarEvents/EVENT_ID'
+    try:
+        subject = cloud_event["subject"]
+        print(f"Event Subject: {subject}")
+
+        # Split the string after '/documents/' to get the path parts
+        path_parts = subject.split('/documents/')[1].split('/')
+        
+        # Expected structure: ['users', 'USER_ID', 'calendarEvents', 'EVENT_ID']
+        if len(path_parts) >= 4 and path_parts[0] == 'users' and path_parts[2] == 'calendarEvents':
+            user_id = path_parts[1]
+            event_id = path_parts[3]
+        else:
+            print(f"Error: Unexpected path structure in subject: {subject}")
+            return
+            
+    except (IndexError, KeyError) as e:
+        print(f"Error: Could not parse user and event IDs from subject string: {cloud_event.get('subject', 'Not Found')}. Details: {e}")
         return
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
@@ -84,5 +101,5 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print(f"Successfully created a new to-do task for user {user_id}.")
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred during agent call or Firestore write: {e}")
 
