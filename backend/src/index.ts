@@ -52,7 +52,7 @@ app.post('/events', authenticate, async (req, res) => {
     const docRef = await db.collection('users').doc(user.uid).collection('calendarEvents').add(eventData);
     res.status(201).send({ message: 'Event created successfully', eventId: docRef.id });
   } catch (error) {
-    console.error("Error creating event:", error);
+    console.error("Error creating event with error:", error);
     res.status(500).send({ message: 'Internal Server Error' });
   }
 });
