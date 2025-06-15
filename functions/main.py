@@ -8,7 +8,8 @@ import datetime
 # --- Corrected Imports ---
 # Import the necessary classes from the Vertex AI SDK
 import vertexai
-from vertexai.preview import agent_engines
+# The 'agent_engines' module is now directly under the 'vertexai' namespace, not 'preview'.
+from vertexai import agent_engines
 
 # --- Initialization ---
 firebase_admin.initialize_app()
@@ -63,6 +64,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     print(f"Querying Agent Engine with title: '{event_title}'")
 
     try:
+        # --- Corrected Agent Engine Query ---
         # 1. Get a reference to your deployed agent
         agent = agent_engines.get(AGENT_ENGINE_ID)
         

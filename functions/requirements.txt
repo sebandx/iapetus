@@ -1,12 +1,11 @@
 # Required for Cloud Functions framework
 functions-framework==3.*
 
-# Required for Firestore and Vertex AI integration
-google-cloud-aiplatform = { extras = [
-    "agent-engines",
-], version = "^1.93.0" }
+# Required for Firestore and Vertex AI integration.
+# The [agent-engines] extra installs the specific dependencies needed to interact with Agent Engine.
+google-cloud-aiplatform[agent-engines]
 google-cloud-firestore
 firebase-admin
 
 # Required to decode Firestore event payloads (Protobuf messages)
-google-events
+google-cloudevents
