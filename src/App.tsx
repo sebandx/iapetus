@@ -5,12 +5,9 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
-// Import the new CalendarView component
 import CalendarView from './pages/CalendarView';
-
-// --- Placeholder Components for Dashboard sections ---
-const TodoList = () => <h2>To-do Tasks</h2>;
-// The placeholder for CalendarView is no longer needed
+// Import the new, functional TodoList component
+import TodoList from './pages/TodoList';
 
 function App() {
   return (
@@ -23,10 +20,10 @@ function App() {
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedRoute />}>
             <Route path="/" element={<Dashboard />}>
-              {/* Nested routes for the dashboard content */}
+              {/* Default child route for the dashboard */}
               <Route index element={<Navigate to="/tasks" replace />} />
+              {/* Use the real TodoList component */}
               <Route path="tasks" element={<TodoList />} />
-              {/* Use the real CalendarView component */}
               <Route path="calendar" element={<CalendarView />} />
             </Route>
           </Route>
