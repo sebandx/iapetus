@@ -6,7 +6,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { db } from '../firebase';
-import { collection, addDoc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, Timestamp } from 'firebase/firestore'; // Removed addDoc
 import { useAuth } from '../context/AuthContext';
 import EventModal from '../components/EventModal';
 
@@ -23,6 +23,8 @@ const CalendarView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  // This useEffect for fetching events remains the same.
+  // It will automatically update the UI when the backend writes to Firestore.
   useEffect(() => {
     if (!currentUser) return;
 
@@ -50,27 +52,53 @@ const CalendarView = () => {
     setIsModalOpen(true);
   };
 
+  // --- UPDATED LOGIC TO CALL THE BACKEND API ---
   const handleSaveEvent = async (title: string, startTime: Date, duration: number) => {
-    if (!currentUser) return;
+    if (!currentUser) {
+        alert('You must be logged in to create an event.');
+        return;
+    }
 
+    // Calculate end time
     const endTime = new Date(startTime.getTime() + duration * 60000);
 
     try {
-      const calendarCollectionRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
-      await addDoc(calendarCollectionRef, {
-        title: title,
-        startTime: Timestamp.fromDate(startTime),
-        endTime: Timestamp.fromDate(endTime),
-      });
+        // 1. Get the Firebase ID token for the current user.
+        const token = await currentUser.getIdToken();
+
+        // 2. Send a POST request to your new backend endpoint.
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/events`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // 3. Include the token in the Authorization header.
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                title,
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+            }),
+        });
+
+        if (!response.ok) {
+            // If the server response is not OK, throw an error.
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to save event.');
+        }
+
+        // The onSnapshot listener will handle UI updates automatically.
+        
     } catch (error) {
-      console.error("Error adding document: ", error);
-      alert('Failed to save event.');
+      console.error("Error saving event via backend: ", error);
+      alert(`Failed to save event: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   return (
     <div>
       <style>{`
+        /* Custom FullCalendar styles */
         .fc .fc-button-primary { 
           background-color: #4F46E5; 
           border-color: #4F46E5; 
@@ -83,10 +111,10 @@ const CalendarView = () => {
           border-color: #4F46E5;
         }
         .fc .fc-timegrid-now-indicator-line {
-          border-color: #EF4444; /* Make the 'now' line red */
+          border-color: #EF4444;
         }
         .fc .fc-timegrid-now-indicator-arrow {
-          border-top-color: #EF4444; /* Make the 'now' arrow red */
+          border-top-color: #EF4444;
         }
       `}</style>
       <h1>Calendar</h1>
@@ -99,8 +127,8 @@ const CalendarView = () => {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         }}
-        initialView="timeGridWeek" // Changed default view to week
-        nowIndicator={true} // Add the red line for the current time
+        initialView="timeGridWeek"
+        nowIndicator={true}
         events={events}
         dateClick={handleDateClick}
         height="auto"
