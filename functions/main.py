@@ -3,6 +3,10 @@ import functions_framework
 from cloudevents.http import CloudEvent
 import firebase_admin
 from firebase_admin import firestore
+from google.cloud import aiplatform
+
+from google.events.cloud.firestore_v1.types import DocumentEventData
+
 import datetime
 
 # --- Corrected Imports ---
@@ -25,7 +29,7 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     """
     A Cloud Function that triggers when a new calendar event is created.
-    It queries a deployed Agent Engine and creates a to-do task in Firestore.
+    It queries a RAG agent and creates a corresponding to-do task in Firestore.
     """
     print("Function triggered by a new calendar event.")
     
@@ -38,18 +42,19 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         else:
             print(f"Error: Unexpected path structure: {document_path}")
             return
-    except (IndexError, KeyError) as e:
-        print(f"Error: Could not parse IDs from document path: {cloud_event.get('document', 'Not Found')}. Details: {e}")
+    except (IndexError, KeyError):
+        print(f"Error: Could not parse IDs from document path: {cloud_event.get('document', 'Not Found')}")
         return
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
-    firestore_payload = cloud_event.data.get("value", {})
-    if not firestore_payload:
-        print("Error: Event data is missing 'value' field.")
-        return
-        
-    event_title = firestore_payload.get("fields", {}).get("title", {}).get("stringValue")
+    # --- THE FIX ---
+    # The 'data' payload is a Protobuf message. We decode it into a structured object.
+    firestore_payload = DocumentEventData()
+    firestore_payload._pb.ParseFromString(cloud_event.data)
+
+    # Now we can safely access the fields from the decoded payload
+    event_title = firestore_payload.value.fields["title"].string_value
 
     if not event_title:
         print("Event created without a title. Exiting function.")
