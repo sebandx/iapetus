@@ -5,6 +5,8 @@ import firebase_admin
 from firebase_admin import firestore
 import datetime
 from google.events.cloud.firestore_v1.types import DocumentEventData
+from google.adk.sessions import VertexAiSessionService
+import asyncio
 
 # --- Corrected Imports to match the working sample ---
 import vertexai
@@ -65,15 +67,20 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     try:
         # --- Corrected Agent Engine Query based on your working script ---
+        session_service = VertexAiSessionService(project=PROJECT_ID,location=LOCATION)
+        session = asyncio.run(session_service.create_session(
+            app_name=AGENT_ENGINE_ID,
+            user_id=user_id,
+        ))
         agent = agent_engines.get(AGENT_ENGINE_ID)
         print(f"Querying Agent Engine: '{agent}'")
 
 
         # Use stream_query, which is the correct method for Agent Engine
         response_stream = agent.stream_query(
-            query=f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list.",
-            session_id=event_id, # Use event_id for a unique session for this stateless call
-            user_id=user_id
+            message=f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list.",
+            session_id=session.id,
+            user_id=user_id,
         )
 
         # Iterate through the stream to build the full text response
