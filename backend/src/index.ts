@@ -33,6 +33,40 @@ app.get('/', (req, res) => {
   res.send('Hello from the Study Planner Backend!');
 });
 
+app.get('/tasks', authenticate, async (req, res) => {
+  try {
+    const { user } = req as any;
+    const db = getFirestore();
+
+    const tasksCollectionRef = db.collection('users').doc(user.uid).collection('tasks');
+    const snapshot = await tasksCollectionRef.orderBy('dueDate', 'desc').get();
+
+    if (snapshot.empty) {
+      return res.status(200).send([]); // Return an empty array if no tasks exist
+    }
+
+    // Map the documents to an array of task objects
+    const tasks = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title,
+        details: data.details,
+        status: data.status,
+        priority: data.priority,
+        // Convert Firestore timestamp to a standard ISO string for the frontend
+        dueDate: data.dueDate.toDate().toISOString(),
+        relatedCalendarEventId: data.relatedCalendarEventId,
+      };
+    });
+
+    res.status(200).send(tasks);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
 // CREATE Event
 app.post('/events', authenticate, async (req, res) => {
   // ... existing code ...
