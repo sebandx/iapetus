@@ -67,6 +67,45 @@ app.get('/tasks', authenticate, async (req, res) => {
   }
 });
 
+app.put('/tasks/:taskId', authenticate, async (req, res) => {
+  try {
+    const { user } = req as any;
+    const { taskId } = req.params;
+    const { status } = req.body; // We'll only allow updating the status for now
+
+    if (!status) {
+      return res.status(400).send({ message: 'Missing "status" field for update.' });
+    }
+
+    const db = getFirestore();
+    const taskRef = db.collection('users').doc(user.uid).collection('tasks').doc(taskId);
+
+    await taskRef.update({ status });
+    res.status(200).send({ message: 'Task updated successfully' });
+
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
+app.delete('/tasks/:taskId', authenticate, async (req, res) => {
+  try {
+    const { user } = req as any;
+    const { taskId } = req.params;
+
+    const db = getFirestore();
+    const taskRef = db.collection('users').doc(user.uid).collection('tasks').doc(taskId);
+    
+    await taskRef.delete();
+    res.status(200).send({ message: 'Task deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
 // CREATE Event
 app.post('/events', authenticate, async (req, res) => {
   // ... existing code ...
