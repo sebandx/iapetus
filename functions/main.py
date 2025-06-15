@@ -62,13 +62,15 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print("AGENT_ENGINE_ID environment variable not set. Exiting function.")
         return
 
-    print(f"Querying Agent Engine with title: '{event_title}'")
+    print(f"Querying Agent Engine with title: '{event_title}', to agent: '{AGENT_ENGINE_ID}'")
 
     try:
         # --- Corrected Agent Engine Query ---
         # 1. Get a reference to your deployed agent
         agent = agent_engines.get(AGENT_ENGINE_ID)
         
+        print(f"Querying Agent Engine: '{agent}'")
+
         # 2. Use stream_query, which is the correct method.
         #    For a stateless function, the session_id can be any unique string.
         response_stream = agent.stream_query(
