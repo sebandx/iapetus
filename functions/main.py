@@ -76,6 +76,8 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
             session_id=event_id, # Use event_id for a unique session
             user_id=user_id
         )
+
+        print(f"Received response_stream from Agent Engine: {response_stream}")
         
         # 3. Iterate through the stream to build the full text response
         agent_response_text = ""
