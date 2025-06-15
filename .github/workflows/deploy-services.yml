@@ -104,22 +104,20 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: 'google-github-actions/auth@v2'
         with:
-          node-version: '20'
-      # Install dependencies inside the 'functions' directory
-      - name: Install Function Dependencies
-        run: npm --prefix functions ci
-      # Build the TypeScript code inside the 'functions' directory
-      - name: Build Functions
-        run: npm --prefix functions run build
-      - name: Deploy to Firebase Functions
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: 'lithe-creek-462503-v4'
-          # --- THE FIX ---
-          # Use 'target' to specify what to deploy. This corresponds to 'firebase deploy --only functions'
-          target: functions
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Deploy Python Cloud Function
+        run: |-
+          gcloud functions deploy on_calendar_event_create \
+            --gen2 \
+            --runtime=python312 \
+            --region=us-central1 \
+            --source=./functions \
+            --entry-point=on_calendar_event_create \
+            --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
+            --trigger-event-filters="database=(default)" \
+            --trigger-event-filters-path-pattern="resource=projects/lithe-creek-462503-v4/databases/(default)/documents/users/{userId}/calendarEvents/{eventId}" \
+            --set-env-vars="RAG_CORPUS=${{ secrets.RAG_CORPUS }}"
