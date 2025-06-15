@@ -1,29 +1,42 @@
-# Use an official Node.js runtime as a parent image
-FROM node:20
+# ===== BUILDER STAGE =====
+# This stage creates a reliable environment to build your TypeScript code.
+FROM node:20 AS builder
 
-# Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json to the working directory
-# This leverages Docker's layer caching for faster builds
+# Copy the package.json AND package-lock.json
+# The package-lock.json is crucial for 'npm ci'
 COPY package*.json ./
 
-# --- THE CRITICAL FIX ---
-# Explicitly install ALL dependencies, including devDependencies needed for the build.
-# Some build environments (like this one) default to production mode, which skips them.
-RUN npm install --include=dev
+# Use 'npm ci' (Clean Install) instead of 'npm install'.
+# This is the recommended command for automated environments like this.
+# It installs all dependencies, including devDependencies, from the lock file.
+RUN npm ci
 
-# Copy the rest of the application's source code
+# Copy the rest of your source code
 COPY . .
 
-# Now, this command will have access to the 'typescript' package to compile your code
+# Run the build script to compile TypeScript to JavaScript
 RUN npm run build
 
-# After the build, prune the devDependencies to keep the final image small and secure
-RUN npm prune --production
 
-# Your app binds to port 8080, so you need to tell Docker to expose it
+# ===== PRODUCTION STAGE =====
+# This stage creates the final, lean image with only what's needed to run the app.
+FROM node:20-slim
+
+WORKDIR /usr/src/app
+
+# Copy only the package.json to install production dependencies
+COPY package.json ./
+
+# Install ONLY the production dependencies.
+RUN npm install --omit=dev
+
+# Copy the compiled code from the 'builder' stage into this final stage
+COPY --from=builder /usr/src/app/dist ./dist
+
+# Expose the port the app runs on
 EXPOSE 8080
 
-# Define the command to run the compiled JavaScript application
+# The command to run the final, compiled application
 CMD [ "node", "dist/index.js" ]

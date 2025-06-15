@@ -1,0 +1,13 @@
+# backend/.dockerignore
+
+# Ignore the node_modules folder, as it will be installed inside the container
+node_modules
+
+# Ignore the compiled output folder, as it will be generated inside the container
+dist
+
+# Ignore local environment files
+.env
+
+# Ignore npm logs
+npm-debug.log*
