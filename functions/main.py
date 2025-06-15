@@ -4,6 +4,10 @@ from cloudevents.http import CloudEvent
 import firebase_admin
 from firebase_admin import firestore
 from google.cloud import aiplatform
+
+# --- NEW: Import the specific message type for decoding Firestore event data ---
+from google.events.cloud.firestore_v1.types import DocumentEventData
+
 import datetime
 
 # --- Initialization ---
@@ -23,31 +27,29 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     It queries a RAG agent and creates a corresponding to-do task in Firestore.
     """
     print("Function triggered by a new calendar event.")
-    print(f"Full CloudEvent object attributes: {cloud_event.get_attributes()}")
-
+    
     try:
-        # --- THE FIX ---
-        # Get the document path directly from the 'document' attribute, which is more reliable.
         document_path = cloud_event["document"]
         path_parts = document_path.split('/')
-        
-        # Expected structure: ['users', 'USER_ID', 'calendarEvents', 'EVENT_ID']
         if len(path_parts) >= 4 and path_parts[0] == 'users' and path_parts[2] == 'calendarEvents':
             user_id = path_parts[1]
             event_id = path_parts[3]
         else:
-            print(f"Error: Unexpected path structure in document attribute: {document_path}")
+            print(f"Error: Unexpected path structure: {document_path}")
             return
-            
-    except (IndexError, KeyError) as e:
-        print(f"Error: Could not parse user and event IDs from document attribute: {cloud_event.get('document', 'Not Found')}. Details: {e}")
+    except (IndexError, KeyError):
+        print(f"Error: Could not parse IDs from document path: {cloud_event.get('document', 'Not Found')}")
         return
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
-    # Extract the title from the event data payload.
-    event_data = cloud_event.data.get("value", {}).get("fields", {})
-    event_title = event_data.get("title", {}).get("stringValue")
+    # --- THE FIX ---
+    # The 'data' payload is a Protobuf message. We decode it into a structured object.
+    firestore_payload = DocumentEventData()
+    firestore_payload._pb.ParseFromString(cloud_event.data)
+
+    # Now we can safely access the fields from the decoded payload
+    event_title = firestore_payload.value.fields["title"].string_value
 
     if not event_title:
         print("Event created without a title. Exiting function.")
