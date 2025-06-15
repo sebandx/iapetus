@@ -33,6 +33,65 @@ app.get('/', (req, res) => {
   res.send('Hello from the Study Planner Backend!');
 });
 
+// GET all courses for the authenticated user
+app.get('/courses', authenticate, async (req, res) => {
+    try {
+        const { user } = req as any;
+        const db = getFirestore();
+        const coursesRef = db.collection('users').doc(user.uid).collection('courses');
+        const snapshot = await coursesRef.orderBy('name').get();
+
+        if (snapshot.empty) {
+            return res.status(200).send([]);
+        }
+
+        const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.status(200).send(courses);
+
+    } catch (error) {
+        console.error('Error fetching courses:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+    }
+});
+
+// POST (create) a new course
+app.post('/courses', authenticate, async (req, res) => {
+    try {
+        const { user } = req as any;
+        const { name, code } = req.body;
+
+        if (!name) {
+            return res.status(400).send({ message: 'Course name is required.' });
+        }
+
+        const db = getFirestore();
+        const newCourse = { name, code: code || '' };
+        const docRef = await db.collection('users').doc(user.uid).collection('courses').add(newCourse);
+
+        res.status(201).send({ message: 'Course added successfully', id: docRef.id });
+
+    } catch (error) {
+        console.error('Error adding course:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+    }
+});
+
+// DELETE a specific course
+app.delete('/courses/:courseId', authenticate, async (req, res) => {
+    try {
+        const { user } = req as any;
+        const { courseId } = req.params;
+
+        const db = getFirestore();
+        await db.collection('users').doc(user.uid).collection('courses').doc(courseId).delete();
+
+        res.status(200).send({ message: 'Course deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+    }
+});
+
 app.get('/tasks', authenticate, async (req, res) => {
   try {
     const { user } = req as any;

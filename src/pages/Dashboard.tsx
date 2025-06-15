@@ -8,10 +8,9 @@ import { signOut } from 'firebase/auth';
 // --- Icons ---
 const CalendarIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>;
 const TaskIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-4 0V3m0 2h.01M9 12h.01M15 12h.01M9 16h.01M15 16h.01"></path></svg>;
-const BookIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.25278C12 6.25278 15.5344 3 20 3C23.5 3 24 8 24 8C24 8 23.5 18 20 18C15.5344 18 12 20.7472 12 20.7472M12 6.25278C12 6.25278 8.46556 3 4 3C0.5 3 0 8 0 8C0 8 0.5 18 4 18C8.46556 18 12 20.7472 12 20.7472M12 6.25278V20.7472" transform="scale(0.9) translate(-1, -1)"/></svg>;
 const LogoutIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 8H5a2 2 0 01-2-2V6a2 2 0 012-2h8"></path></svg>;
 const HamburgerIcon = () => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
-
+const CourseIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.25278C12 6.25278 15.5344 3 20 3C23.5 3 24 8 24 8C24 8 23.5 18 20 18C15.5344 18 12 20.7472 12 20.7472M12 6.25278C12 6.25278 8.46556 3 4 3C0.5 3 0 8 0 8C0 8 0.5 18 4 18C8.46556 18 12 20.7472 12 20.7472M12 6.25278V20.7472" transform="scale(0.9) translate(-1, -1)"/></svg>;
 const Dashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -98,7 +97,7 @@ const Dashboard = () => {
         <nav style={styles.nav} onClick={() => setIsMobileMenuOpen(false)}>
           <Link to="/tasks" className="nav-link" style={styles.navLink}><TaskIcon /> To-do Tasks</Link>
           <Link to="/calendar" className="nav-link" style={styles.navLink}><CalendarIcon /> Calendar</Link>
-          <Link to="/materials" className="nav-link" style={styles.navLink}><BookIcon /> Study Materials</Link>
+          <Link to="/courses" className="nav-link" style={styles.navLink}><CourseIcon /> Courses</Link>
         </nav>
         <button onClick={handleLogout} className="logout-button" style={styles.logoutButton}>
           <LogoutIcon /> Logout

@@ -25,6 +25,7 @@ function App() {
               {/* Use the real TodoList component */}
               <Route path="tasks" element={<TodoList />} />
               <Route path="calendar" element={<CalendarView />} />
+              <Route path="courses" element={<Courses />} />
             </Route>
           </Route>
 
