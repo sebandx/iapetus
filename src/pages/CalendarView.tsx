@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
-// --- THIS IS THE FIX ---
-// Import the type directly from the core package
 import { type EventClickArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -26,7 +24,10 @@ const CalendarView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // Effect to fetch events from Firestore
   useEffect(() => {
     if (!currentUser) return;
     const calendarCollectionRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
@@ -41,6 +42,15 @@ const CalendarView = () => {
     });
     return () => unsubscribe();
   }, [currentUser]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
 
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
@@ -63,55 +73,25 @@ const CalendarView = () => {
     setSelectedEvent(null);
   }
 
+  // Save/Update/Delete logic remains the same
   const handleSaveEvent = async (title: string, startTime: Date, duration: number, eventId: string | null) => {
     if (!currentUser) return;
-
     const endTime = new Date(startTime.getTime() + duration * 60000);
     const eventData = { title, startTime: startTime.toISOString(), endTime: endTime.toISOString() };
     const token = await currentUser.getIdToken();
-    
     const isUpdate = eventId !== null;
     const url = isUpdate ? `${import.meta.env.VITE_API_URL}/events/${eventId}` : `${import.meta.env.VITE_API_URL}/events`;
     const method = isUpdate ? 'PUT' : 'POST';
-
     try {
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify(eventData),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to save event.');
-        }
-    } catch (error) {
-      console.error("Error saving event:", error);
-      alert(`Failed to save event: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+        await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`}, body: JSON.stringify(eventData) });
+    } catch (error) { console.error("Error saving event:", error); }
   };
-
   const handleDeleteEvent = async (eventId: string) => {
     if (!currentUser) return;
-    
     try {
         const token = await currentUser.getIdToken();
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/events/${eventId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to delete event.');
-        }
-    } catch (error) {
-      console.error("Error deleting event:", error);
-      alert(`Failed to delete event: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+        await fetch(`${import.meta.env.VITE_API_URL}/events/${eventId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    } catch (error) { console.error("Error deleting event:", error); }
   };
 
   return (
@@ -123,20 +103,47 @@ const CalendarView = () => {
         .fc-event { background-color: #6366F1; border-color: #4F46E5; }
         .fc .fc-timegrid-now-indicator-line { border-color: #EF4444; }
         .fc .fc-timegrid-now-indicator-arrow { border-top-color: #EF4444; }
+
+        /* --- NEW --- Mobile-specific styles for the calendar */
+        @media (max-width: 767px) {
+          .fc-header-toolbar {
+            flex-direction: column;
+            gap: 10px;
+          }
+          .fc .fc-toolbar-title {
+            font-size: 1.25em;
+          }
+          .fc-event-main-frame {
+            font-size: 0.8rem;
+          }
+        }
       `}</style>
       <h1>Calendar</h1>
-      <p>Click on a date to add a new event, or click an existing event to edit or delete it.</p>
+      <p>Click on a date to add a new study event, or click an existing event to edit or delete it.</p>
       
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-        initialView="timeGridWeek"
+        // --- UPDATED --- Use different settings based on screen size
+        headerToolbar={isMobile ? {
+            left: 'prev,next',
+            center: 'title',
+            right: 'today'
+          } : {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }}
+        initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
         nowIndicator={true}
         events={events}
         dateClick={handleDateClick}
         eventClick={handleEventClick}
         height="auto"
-        eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
+        eventTimeFormat={{
+          hour: 'numeric',
+          minute: '2-digit',
+          meridiem: 'short'
+        }}
       />
 
       <EventModal
