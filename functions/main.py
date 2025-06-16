@@ -93,6 +93,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         else:
             prompt = f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
 
+        print(f"Using prompt: {prompt}")
         # Use stream_query, which is the correct method for Agent Engine
         response_stream = agent.stream_query(
             message=prompt  ,
