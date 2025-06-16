@@ -1,8 +1,9 @@
 // src/pages/TodoList.tsx
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import TaskItem from '../components/TaskItem';
+import ConfirmModal from '../components/ConfirmModal'; // Import the reusable modal
 
 interface Task {
   id: string;
@@ -10,7 +11,7 @@ interface Task {
   details: string;
   status: 'PENDING' | 'COMPLETED';
   priority: string;
-  dueDate: { _seconds: number, _nanoseconds: number };
+  dueDate: { _seconds: number, _nanoseconds: number } | string;
 }
 
 const TodoList = () => {
@@ -18,8 +19,11 @@ const TodoList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { currentUser } = useAuth();
+  
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   useEffect(() => {
+    // ... fetching logic remains the same ...
     const fetchTasks = async () => {
       if (!currentUser) { setLoading(false); return; }
       try {
@@ -40,6 +44,7 @@ const TodoList = () => {
   }, [currentUser]);
 
   const handleUpdateTask = async (taskId: string, newStatus: 'PENDING' | 'COMPLETED') => {
+    // ... update logic remains the same ...
     if (!currentUser) return;
     try {
       const token = await currentUser.getIdToken();
@@ -57,32 +62,33 @@ const TodoList = () => {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!currentUser || !window.confirm("Are you sure you want to delete this task?")) return;
+  // This function now just opens the confirmation modal
+  const handleDeleteTask = (taskId: string) => {
+    setTaskToDelete(taskId);
+  };
+
+  // This function runs when the user confirms the deletion
+  const handleConfirmDelete = async () => {
+    if (!currentUser || !taskToDelete) return;
     try {
       const token = await currentUser.getIdToken();
-      await fetch(`${import.meta.env.VITE_API_URL}/tasks/${taskId}`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/tasks/${taskToDelete}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+      // Remove the task from local state and close the modal
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskToDelete));
+      setTaskToDelete(null);
     } catch (err) {
       console.error("Failed to delete task:", err);
       alert("Failed to delete task.");
     }
   };
 
-  // Use useMemo to efficiently separate tasks into two lists.
-  // This will only re-calculate when the main 'tasks' array changes.
+
   const pendingTasks = useMemo(() => tasks.filter(task => task.status === 'PENDING'), [tasks]);
   const completedTasks = useMemo(() => tasks.filter(task => task.status === 'COMPLETED'), [tasks]);
-
-  const styles = {
-    container: { fontFamily: "'Inter', sans-serif" },
-    title: { fontSize: '2rem', color: '#111827', marginBottom: '20px' },
-    sectionTitle: { fontSize: '1.5rem', color: '#374151', marginTop: '40px', borderBottom: '2px solid #E5E7EB', paddingBottom: '10px' },
-    emptyMessage: { color: '#6B7280', fontStyle: 'italic' },
-  };
+  const styles = { /* ... styles ... */ };
 
   if (loading) return <div>Loading tasks...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
@@ -90,12 +96,12 @@ const TodoList = () => {
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Your To-do List</h1>
-
-      {/* --- PENDING TASKS SECTION --- */}
+      
+      {/* Pending Tasks Section */}
       <section>
         <h2 style={styles.sectionTitle}>Pending ({pendingTasks.length})</h2>
         {pendingTasks.length === 0 ? (
-          <p style={styles.emptyMessage}>No pending tasks. Create a calendar event to automatically generate one!</p>
+          <p style={styles.emptyMessage}>No pending tasks.</p>
         ) : (
           pendingTasks.map(task => (
             <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
@@ -103,7 +109,7 @@ const TodoList = () => {
         )}
       </section>
 
-      {/* --- COMPLETED TASKS SECTION --- */}
+      {/* Completed Tasks Section */}
       <section>
         <h2 style={styles.sectionTitle}>Completed ({completedTasks.length})</h2>
         {completedTasks.length === 0 ? (
@@ -115,6 +121,14 @@ const TodoList = () => {
         )}
       </section>
 
+      {/* Render the confirmation modal */}
+      <ConfirmModal
+        isOpen={taskToDelete !== null}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Task"
+        message="Are you sure you want to permanently delete this task?"
+      />
     </div>
   );
 };
