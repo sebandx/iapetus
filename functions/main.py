@@ -53,7 +53,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     # Now we can safely access the fields from the decoded payload
     event_title = firestore_payload.value.fields["title"].string_value
-
+    course_id = firestore_payload.value.fields["courseId"].string_value
 
     if not event_title:
         print("Event created without a title. Exiting function.")
@@ -75,10 +75,26 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         agent = agent_engines.get(AGENT_ENGINE_ID)
         print(f"Querying Agent Engine: '{agent}'")
 
+        db = firestore.client()
+        course_name = ""
+        # --- NEW: Fetch course details if a courseId exists ---
+        if course_id:
+            print(f"Event is linked to courseId: {course_id}. Fetching course details.")
+            course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
+            course_doc = course_ref.get()
+            if course_doc.exists:
+                course_name = course_doc.to_dict().get("name", "")
+                print(f"Found course name: {course_name}")
+
+        # Construct the prompt with or without the course context
+        if course_name:
+            prompt = f"For the course '{course_name}', what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
+        else:
+            prompt = f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
 
         # Use stream_query, which is the correct method for Agent Engine
         response_stream = agent.stream_query(
-            message=f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list.",
+            message=prompt  ,
             session_id=session.id,
             user_id=user_id,
         )
@@ -97,14 +113,18 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print(f"Received response from Agent Engine: {agent_response_text}")
 
         # --- Write the New To-Do Task to Firestore ---
-        db = firestore.client()
+        tasks_collection = db.collection("users").document(user_id).collection("tasks")
+        event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
+        event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
+        due_date = event_start_date - datetime.timedelta(days=1)
+        
         tasks_collection = db.collection("users").document(user_id).collection("tasks")
         tasks_collection.add({
             "title": f"Review prerequisites for: {event_title}",
             "details": agent_response_text,
             "status": "PENDING",
             "relatedCalendarEventId": event_id,
-            "dueDate": datetime.datetime.now(datetime.timezone.utc),
+            "dueDate": due_date,
             "priority": "MEDIUM",
         })
 
