@@ -4,11 +4,16 @@ import React, { useState, useMemo } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import Flashcard from './Flashcard'; // Import the new component
 
-// ... (Interfaces and Icons remain the same) ...
+// Define the shape of a task object
 interface Task {
-  id: string; title: string; details: string; status: 'PENDING' | 'COMPLETED';
-  priority: string; dueDate: { _seconds: number, _nanoseconds: number } | string;
+  id: string; 
+  title: string; 
+  details: string; 
+  status: 'PENDING' | 'COMPLETED';
+  priority: string; 
+  dueDate: { _seconds: number, _nanoseconds: number } | string;
 }
+
 interface TaskItemProps {
   task: Task;
   onUpdate: (taskId: string, newStatus: 'PENDING' | 'COMPLETED') => void;
@@ -24,50 +29,90 @@ const ChevronUp = () => <svg width="20" height="20" fill="currentColor" viewBox=
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(task.status === 'PENDING');
 
-  // --- NEW: Parse flashcard data from the details string ---
   const flashcards = useMemo(() => {
     try {
-      // Clean up the string in case the AI returns it wrapped in markdown backticks
-      const cleanedDetails = task.details.replace(/^```json\s*|```$/g, '');
+      const cleanedDetails = task.details.replace(/^```json\s*|```$/g, '').trim();
       const parsed = JSON.parse(cleanedDetails);
-      // Check if it's an array of objects with question and answer keys
-      if (Array.isArray(parsed) && parsed.every(item => 'question' in item && 'answer' in item)) {
+      if (Array.isArray(parsed) && parsed.every(item => typeof item === 'object' && item !== null && 'question' in item && 'answer' in item)) {
         return parsed;
       }
     } catch (e) {
-      // It's not valid JSON, so we'll treat it as plain text/markdown
+      // Add a console log to help debug why the JSON is failing to parse
+      console.error("Failed to parse task details as JSON flashcards. Falling back to markdown. Error:", e);
+      console.error("Original details string:", task.details);
     }
     return null;
   }, [task.details]);
 
-  // ... (styles and other functions remain the same) ...
-  const styles: { [key: string]: React.CSSProperties } = { /* ... */ };
-  const getPriorityStyle = (priority: string) => { /* ... */ };
-  const formatDate = (timestamp: any) => { /* ... */ };
+  const styles: { [key: string]: React.CSSProperties } = {
+    taskCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)', marginBottom: '15px', borderLeft: '5px solid #4F46E5', transition: 'opacity 0.3s' },
+    taskHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
+    taskTitle: { margin: 0, fontSize: '1.2rem', color: '#1F2937' },
+    detailsContainer: { maxHeight: isExpanded ? '2000px' : '0', overflow: 'hidden', transition: 'max-height 0.5s ease-in-out, padding 0.5s ease-in-out', paddingTop: isExpanded ? '10px' : '0' },
+    taskFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' },
+    taskMeta: { display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#6B7280', alignItems: 'center' },
+    tag: { padding: '4px 10px', borderRadius: '12px', fontWeight: 500, fontSize: '0.8rem' },
+    actions: { display: 'flex', gap: '10px', flexShrink: 0 },
+    button: { background: 'none', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: 'background-color 0.2s' },
+    foldButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px', color: '#6B7280' },
+  };
+
+  const getPriorityStyle = (priority: string) => {
+    switch (priority) {
+      case 'HIGH': return { backgroundColor: '#FEE2E2', color: '#991B1B' };
+      case 'MEDIUM': return { backgroundColor: '#FEF3C7', color: '#92400E' };
+      default: return { backgroundColor: '#E0E7FF', color: '#3730A3' };
+    }
+  };
+
+  const formatDate = (timestamp: { _seconds: number, _nanoseconds: number } | string) => {
+    if (!timestamp) return 'N/A';
+    if (typeof timestamp === 'string') {
+      return new Date(timestamp).toLocaleDateString();
+    } else if (timestamp._seconds) {
+      return new Date(timestamp._seconds * 1000).toLocaleDateString();
+    }
+    return 'Invalid Date';
+  };
 
   return (
-    <div style={{... { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)', marginBottom: '15px', borderLeft: '5px solid #4F46E5', transition: 'opacity 0.3s' }, opacity: task.status === 'COMPLETED' ? 0.6 : 1, borderLeftColor: task.status === 'COMPLETED' ? '#9CA3AF' : '#4F46E5' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#1F2937' }}>{task.title}</h2>
-        {/* ... action buttons ... */}
+    <div style={{ ...styles.taskCard, opacity: task.status === 'COMPLETED' ? 0.6 : 1, borderLeftColor: task.status === 'COMPLETED' ? '#9CA3AF' : '#4F46E5' }}>
+      <div style={styles.taskHeader}>
+        <h2 style={styles.taskTitle}>{task.title}</h2>
+        <div style={styles.actions}>
+          {task.status === 'PENDING' ? (
+            <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button} title="Mark as Done">
+              <CheckIcon /> Mark as Done
+            </button>
+          ) : (
+            <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button} title="Mark as Pending">
+              <UndoIcon /> Mark as Pending
+            </button>
+          )}
+          <button onClick={() => onDelete(task.id)} style={{...styles.button, color: '#DC2626'}} title="Delete Task">
+              <TrashIcon />
+          </button>
+          <button onClick={() => setIsExpanded(!isExpanded)} style={styles.foldButton} aria-label={isExpanded ? "Collapse task" : "Expand task"} title={isExpanded ? "Collapse" : "Expand"}>
+              {isExpanded ? <ChevronUp /> : <ChevronDown />}
+          </button>
+        </div>
       </div>
-      <div style={{ maxHeight: isExpanded ? '2000px' : '0', overflow: 'hidden', transition: 'max-height 0.5s ease-in-out, padding 0.5s ease-in-out', paddingTop: isExpanded ? '10px' : '0' }}>
-        
-        {/* --- THIS IS THE FIX --- */}
-        {/* Conditionally render flashcards or fallback to markdown */}
+      <div style={styles.detailsContainer}>
         {flashcards ? (
           <div>
             <p style={{color: '#4B5563', lineHeight: '1.6'}}>Click on a card to reveal the answer.</p>
-            {flashcards.map((card, index) => (
+            {flashcards.map((card: any, index: number) => (
               <Flashcard key={index} question={card.question} answer={card.answer} />
             ))}
           </div>
         ) : (
           <MarkdownRenderer content={task.details} />
         )}
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
-            {/* ... footer meta info ... */}
+        <div style={styles.taskFooter}>
+           <div style={styles.taskMeta}>
+            <span>Due: <strong>{formatDate(task.dueDate)}</strong></span>
+            <span>Priority: <span style={{ ...styles.tag, ...getPriorityStyle(task.priority) }}>{task.priority}</span></span>
+          </div>
         </div>
       </div>
     </div>
