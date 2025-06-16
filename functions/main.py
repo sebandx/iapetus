@@ -4,7 +4,6 @@ from cloudevents.http import CloudEvent
 import firebase_admin
 from firebase_admin import firestore
 import datetime
-import json
 from google.events.cloud.firestore_v1.types import DocumentEventData
 from google.adk.sessions import VertexAiSessionService
 import asyncio
@@ -28,7 +27,7 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     """
     A Cloud Function that triggers when a new calendar event is created.
-    It queries a deployed Agent Engine and creates a to-do task in Firestore.
+    It queries a deployed Agent Engine and creates two to-do tasks in Firestore.
     """
     print("Function triggered by a new calendar event.")
     
@@ -47,93 +46,78 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
-    # --- THE FIX ---
-    # The 'data' payload is a Protobuf message. We decode it into a structured object.
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
 
-    # Now we can safely access the fields from the decoded payload
     event_title = firestore_payload.value.fields["title"].string_value
     course_id = firestore_payload.value.fields["courseId"].string_value
 
-    if not event_title:
-        print("Event created without a title. Exiting function.")
+    if not event_title or not AGENT_ENGINE_ID:
+        print("Event created without a title or AGENT_ENGINE_ID is not set. Exiting function.")
         return
-
-    if not AGENT_ENGINE_ID:
-        print("AGENT_ENGINE_ID environment variable not set. Exiting function.")
-        return
-
-    print(f"Querying Agent Engine with title: '{event_title}', to agent: '{AGENT_ENGINE_ID}'")
 
     try:
-        # --- Corrected Agent Engine Query based on your working script ---
-        session_service = VertexAiSessionService(project=PROJECT_ID,location=LOCATION)
-        session = asyncio.run(session_service.create_session(
-            app_name=AGENT_ENGINE_ID,
-            user_id=user_id,
-        ))
-        agent = agent_engines.get(AGENT_ENGINE_ID)
-        print(f"Querying Agent Engine: '{agent}'")
-
         db = firestore.client()
-        course_name = ""
-        course_code = ""
-        # --- NEW: Fetch course details if a courseId exists ---
+        course_name, course_code = "", ""
         if course_id:
-            print(f"Event is linked to courseId: {course_id}. Fetching course details.")
+            print(f"Event linked to courseId: {course_id}. Fetching details.")
             course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
             course_doc = course_ref.get()
             if course_doc.exists:
-                course_name = course_doc.to_dict().get("name", "")
-                course_code = course_doc.to_dict().get("code", "")
-                print(f"Found course name: {course_name}")
+                course_data = course_doc.to_dict()
+                if course_data:
+                    course_name = course_data.get("name", "")
+                    course_code = course_data.get("code", "")
+                print(f"Found course: {course_name} ({course_code})")
 
-        if course_name:
-            prompt = f"For the course '{course_name}, {course_code}', generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return the output as a JSON array where each object has a 'question' key and an 'answer' key."
-        else:
-            prompt = f"Generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return the output as a JSON array where each object has a 'question' key and an 'answer' key."
+        # --- Generate Prerequisite Flashcards ---
+        prereq_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 prerequisite review flashcards. Return as a JSON array of objects with 'question' and 'answer' keys." if course_name else f"Generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
+        print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
 
-        print(f"Querying Agent Engine with prompt: '{prompt}'")
-
-        # Use stream_query, which is the correct method for Agent Engine
-        response_stream = agent.stream_query(
-            message=prompt  ,
-            session_id=session.id,
-            user_id=user_id,
-        )
-
-        agent_response_text = "".join(
-            event["content"]["parts"][0].get("text", "")
-            for event in response_stream
-            if "content" in event and event.get("content", {}).get("parts")
-        )
+        agent = agent_engines.get(AGENT_ENGINE_ID)
+        session_service = VertexAiSessionService(project=PROJECT_ID, location=LOCATION)
+        session = asyncio.run(session_service.create_session(app_name=AGENT_ENGINE_ID, user_id=user_id))
         
-        if not agent_response_text:
-            print("Agent returned an empty text response.")
-            return
-
-        print(f"Received response from Agent Engine: {agent_response_text}")
-
-        # --- Write the New To-Do Task to Firestore ---
-        tasks_collection = db.collection("users").document(user_id).collection("tasks")
-        event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
-        event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
-        due_date = event_start_date - datetime.timedelta(days=1)
+        prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
+        prereq_response_text = "".join(event["content"]["parts"][0].get("text", "") for event in prereq_response_stream if "content" in event and event.get("content", {}).get("parts"))
         
+        if not prereq_response_text:
+            print("Agent returned empty response for prerequisites.")
+            prereq_response_text = "Could not generate prerequisite material."
+
+
+        # --- Generate Post-Lecture Flashcards ---
+        post_lecture_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 flashcards summarizing the key concepts. Return as a JSON array of objects with 'question' and 'answer' keys." if course_name else f"Generate 3-5 flashcards summarizing key concepts for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
+        print(f"Querying for post-lecture review with prompt: '{post_lecture_prompt}'")
+        
+        # We can reuse the same session for the second query
+        post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=session.id, user_id=user_id)
+        post_lecture_response_text = "".join(event["content"]["parts"][0].get("text", "") for event in post_lecture_response_stream if "content" in event and event.get("content", {}).get("parts"))
+
+        if not post_lecture_response_text:
+            print("Agent returned empty response for post-lecture review.")
+            post_lecture_response_text = "Could not generate review material."
+
+
+        # --- Write Both Tasks to Firestore ---
         tasks_collection = db.collection("users").document(user_id).collection("tasks")
+        event_start_time = firestore_payload.value.fields["startTime"].timestamp_value.ToDatetime()
+
+        # 1. Prerequisite Task (due before)
+        prereq_due_date = event_start_time - datetime.timedelta(days=1)
         tasks_collection.add({
-            "title": f"Review flashcards for: {event_title}",
-            "details": agent_response_text, # This will now be a JSON string
-            "status": "PENDING",
-            "relatedCalendarEventId": event_id,
-            "dueDate": due_date,
-            "priority": "HIGH", # Increased priority for review tasks
+            "title": f"Review prerequisites for: {event_title}", "details": prereq_response_text,
+            "status": "PENDING", "relatedCalendarEventId": event_id, "dueDate": prereq_due_date, "priority": "HIGH",
         })
+        print("Successfully created prerequisite task.")
 
-
-        print(f"Successfully created a new flashcard task for user {user_id}.")
+        # 2. Post-Lecture Review Task (due after)
+        post_review_due_date = event_start_time + datetime.timedelta(days=1)
+        tasks_collection.add({
+            "title": f"Review lecture content for: {event_title}", "details": post_lecture_response_text,
+            "status": "PENDING", "relatedCalendarEventId": event_id, "dueDate": post_review_due_date, "priority": "MEDIUM",
+        })
+        print("Successfully created post-lecture review task.")
 
     except Exception as e:
         print(f"An error occurred during agent call or Firestore write: {e}")
-
