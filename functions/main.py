@@ -84,11 +84,12 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
             course_doc = course_ref.get()
             if course_doc.exists:
                 course_name = course_doc.to_dict().get("name", "")
+                course_code = course_doc.to_dict().get("code", "")
                 print(f"Found course name: {course_name}")
 
         # Construct the prompt with or without the course context
         if course_name:
-            prompt = f"For the course '{course_name}', what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
+            prompt = f"For the course '{course_name}, {course_code}', what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
         else:
             prompt = f"Based on the course material, what are the key prerequisite topics I should review for '{event_title}'? Please provide a concise list."
 
