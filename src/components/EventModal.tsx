@@ -6,24 +6,30 @@ import React, { useState, useEffect } from 'react';
 interface Course {
   id: string;
   name: string;
+  code?: string;
 }
 
 // Define the properties the modal will accept
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (title: string, dateTime: Date, duration: number, courseId: string, eventId: string | null) => void; // Added courseId
+  onSave: (title: string, dateTime: Date, duration: number, courseId: string, eventId: string | null) => void;
   onDelete: (eventId: string) => void;
-  existingEvent: { id: string; title: string; start: Date; courseId?: string } | null;
+  existingEvent: {
+    id: string;
+    title: string;
+    start: Date;
+    extendedProps: { courseId?: string }; // Correctly type the nested prop
+  } | null;
   selectedDate: Date | null;
-  courses: Course[]; // Add a prop for the list of courses
+  courses: Course[];
 }
 
 const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDelete, existingEvent, selectedDate, courses }) => {
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('12:00');
   const [duration, setDuration] = useState(60);
-  const [selectedCourseId, setSelectedCourseId] = useState(''); // State for the dropdown
+  const [selectedCourseId, setSelectedCourseId] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -33,7 +39,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
             const hours = startTime.getHours().toString().padStart(2, '0');
             const minutes = startTime.getMinutes().toString().padStart(2, '0');
             setTime(`${hours}:${minutes}`);
-            setSelectedCourseId(existingEvent.courseId || ''); // Set the selected course
+            setSelectedCourseId(existingEvent.extendedProps.courseId || '');
         } else if (selectedDate) {
             setTitle('');
             const clickedTime = new Date(selectedDate);
@@ -41,7 +47,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
             const minutes = clickedTime.getMinutes().toString().padStart(2, '0');
             setTime(`${hours}:${minutes}`);
             setDuration(60);
-            setSelectedCourseId(''); // Reset course selection for new events
+            setSelectedCourseId('');
         }
     }
   }, [existingEvent, selectedDate, isOpen]);
