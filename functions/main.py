@@ -101,7 +101,9 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
         # --- Write Both Tasks to Firestore ---
         tasks_collection = db.collection("users").document(user_id).collection("tasks")
-        event_start_time = firestore_payload.value.fields["startTime"].timestamp_value.ToDatetime()
+        
+        # The correct method name is .to_datetime(), not .ToDatetime()
+        event_start_time = firestore_payload.value.fields["startTime"].timestamp_value.to_datetime()
 
         # 1. Prerequisite Task (due before)
         prereq_due_date = event_start_time - datetime.timedelta(days=1)
