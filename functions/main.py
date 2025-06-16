@@ -46,21 +46,40 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
+    # The 'data' payload is a Protobuf message. We decode it into a structured object.
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
 
+    # Now we can safely access the fields from the decoded payload
     event_title = firestore_payload.value.fields["title"].string_value
     course_id = firestore_payload.value.fields["courseId"].string_value
 
-    if not event_title or not AGENT_ENGINE_ID:
-        print("Event created without a title or AGENT_ENGINE_ID is not set. Exiting function.")
+    if not event_title:
+        print("Event created without a title. Exiting function.")
         return
 
+    if not AGENT_ENGINE_ID:
+        print("AGENT_ENGINE_ID environment variable not set. Exiting function.")
+        return
+
+    print(f"Querying Agent Engine with title: '{event_title}', to agent: '{AGENT_ENGINE_ID}'")
+
     try:
+        # --- Corrected Agent Engine Query based on your working script ---
+        session_service = VertexAiSessionService(project=PROJECT_ID,location=LOCATION)
+        session = asyncio.run(session_service.create_session(
+            app_name=AGENT_ENGINE_ID,
+            user_id=user_id,
+        ))
+        agent = agent_engines.get(AGENT_ENGINE_ID)
+        print(f"Querying Agent Engine: '{agent}'")
+
         db = firestore.client()
-        course_name, course_code = "", ""
+        course_name = ""
+        course_code = ""
+        # --- NEW: Fetch course details if a courseId exists ---
         if course_id:
-            print(f"Event linked to courseId: {course_id}. Fetching details.")
+            print(f"Event is linked to courseId: {course_id}. Fetching course details.")
             course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
             course_doc = course_ref.get()
             if course_doc.exists:
@@ -68,15 +87,11 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
                 if course_data:
                     course_name = course_data.get("name", "")
                     course_code = course_data.get("code", "")
-                print(f"Found course: {course_name} ({course_code})")
+                print(f"Found course name: {course_name}")
 
         # --- Generate Prerequisite Flashcards ---
         prereq_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 prerequisite review flashcards. Return as a JSON array of objects with 'question' and 'answer' keys." if course_name else f"Generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
         print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
-
-        agent = agent_engines.get(AGENT_ENGINE_ID)
-        session_service = VertexAiSessionService(project=PROJECT_ID, location=LOCATION)
-        session = asyncio.run(session_service.create_session(app_name=AGENT_ENGINE_ID, user_id=user_id))
         
         prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
         prereq_response_text = "".join(event["content"]["parts"][0].get("text", "") for event in prereq_response_stream if "content" in event and event.get("content", {}).get("parts"))
