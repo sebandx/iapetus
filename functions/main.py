@@ -28,20 +28,31 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     A Cloud Function that triggers when a new calendar event is created.
     It queries a deployed Agent Engine and creates a to-do task in Firestore.
     """
-    # ... (existing code to parse user_id, event_id, etc.) ...
+    print("Function triggered by a new calendar event.")
+    
     try:
         document_path = cloud_event["document"]
         path_parts = document_path.split('/')
-        user_id = path_parts[1]
-        event_id = path_parts[3]
-    except (IndexError, KeyError):
+        if len(path_parts) >= 4 and path_parts[0] == 'users' and path_parts[2] == 'calendarEvents':
+            user_id = path_parts[1]
+            event_id = path_parts[3]
+        else:
+            print(f"Error: Unexpected path structure: {document_path}")
+            return
+    except (IndexError, KeyError) as e:
+        print(f"Error: Could not parse IDs from document path: {cloud_event.get('document', 'Not Found')}. Details: {e}")
         return
 
+    print(f"Processing Event ID: {event_id} for User ID: {user_id}")
+
+    # --- THE FIX ---
+    # The 'data' payload is a Protobuf message. We decode it into a structured object.
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
-    event_fields = firestore_payload.value.fields
-    event_title = event_fields.get("title", {}).string_value
-    course_id = event_fields.get("courseId", {}).string_value
+
+    # Now we can safely access the fields from the decoded payload
+    event_title = firestore_payload.value.fields["title"].string_value
+    course_id = firestore_payload.value.fields["courseId"].string_value
 
     if not event_title or not AGENT_ENGINE_ID:
         return
