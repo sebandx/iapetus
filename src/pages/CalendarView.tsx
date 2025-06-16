@@ -30,15 +30,26 @@ interface CalendarEvent {
 const CalendarView = () => {
   const { currentUser } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]); // State for courses
+  const [courses, setCourses] = useState<Course[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [loading, setLoading] = useState(true);
 
-  // --- NEW --- Fetch courses when component mounts
+  // Effect to handle window resizing for responsiveness
   useEffect(() => {
-    if (!currentUser) return;
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
+  // Effect to fetch courses
+  useEffect(() => {
+    if (!currentUser) {
+        setLoading(false);
+        return;
+    }
     const fetchCourses = async () => {
       try {
         const token = await currentUser.getIdToken();
@@ -46,19 +57,22 @@ const CalendarView = () => {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         if (!response.ok) throw new Error('Failed to fetch courses.');
-        const data = await response.json();
-        setCourses(data);
+        setCourses(await response.json());
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching courses:", err);
       }
     };
     fetchCourses();
   }, [currentUser]);
 
-
-  // Fetch calendar events
+  // Effect to listen for real-time calendar event updates
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+        setLoading(false);
+        return;
+    };
+    
+    setLoading(true);
     const calendarCollectionRef = collection(db, 'users', currentUser.uid, 'calendarEvents');
     const unsubscribe = onSnapshot(calendarCollectionRef, (snapshot) => {
       const fetchedEvents = snapshot.docs.map(doc => {
@@ -68,48 +82,66 @@ const CalendarView = () => {
           title: data.title,
           start: (data.startTime as Timestamp).toDate(),
           end: (data.endTime as Timestamp).toDate(),
-          extendedProps: {
-              courseId: data.courseId
-          }
+          extendedProps: { courseId: data.courseId }
         }
       });
       setEvents(fetchedEvents);
+      setLoading(false); // Done loading once we get the first snapshot
+    }, (error) => {
+        console.error("Error fetching calendar events:", error);
+        setLoading(false);
     });
+
     return () => unsubscribe();
   }, [currentUser]);
 
-  const handleEventClick = (clickInfo: EventClickArg) => {
-    setSelectedEvent({
-        id: clickInfo.event.id,
-        title: clickInfo.event.title,
-        start: clickInfo.event.start!,
-        end: clickInfo.event.end!,
-        extendedProps: {
-            courseId: clickInfo.event.extendedProps.courseId
-        }
-    });
-    setIsModalOpen(true);
-  };
-  
-  const handleSaveEvent = async (title: string, startTime: Date, duration: number, courseId: string, eventId: string | null) => {
-    // ... save logic ...
-  };
-  
-  // ... other handlers ...
-  
+  // Handlers for modal and events (no changes needed here)
+  const handleDateClick = (arg: { date: Date }) => { /* ... */ };
+  const handleEventClick = (clickInfo: EventClickArg) => { /* ... */ };
+  const handleModalClose = () => { /* ... */ };
+  const handleSaveEvent = async (title: string, startTime: Date, duration: number, courseId: string, eventId: string | null) => { /* ... */ };
+  const handleDeleteEvent = async (eventId: string) => { /* ... */ };
+
+  // --- JSX Rendering ---
+  if (loading) {
+    return <div>Loading Calendar...</div>
+  }
+
   return (
     <div>
-      {/* ... styles ... */}
+      <style>{`/* ... styles ... */`}</style>
       <h1>Calendar</h1>
       <p>Click on a date to add a new study event, or click an existing event to edit or delete it.</p>
       
       <FullCalendar
-        // ... props ...
+        key={isMobile ? 'mobile' : 'desktop'} // Force re-render on view change
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        headerToolbar={isMobile ? {
+            left: 'prev,next',
+            center: 'title',
+            right: 'today'
+          } : {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }}
+        initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
+        nowIndicator={true}
+        events={events}
+        dateClick={handleDateClick}
+        eventClick={handleEventClick}
+        height="auto"
+        eventTimeFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
       />
 
       <EventModal
-        // ... other props ...
-        courses={courses} // Pass courses to the modal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
+        existingEvent={selectedEvent}
+        selectedDate={selectedDate}
+        courses={courses}
       />
     </div>
   );
