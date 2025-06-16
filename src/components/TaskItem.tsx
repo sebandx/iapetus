@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import MarkdownRenderer from './MarkdownRenderer'; // Import the new component
 
+// Allow dueDate to be a string (from JSON) or the object from Firestore
+type DueDate = { _seconds: number, _nanoseconds: number } | string;
+
 // Define the shape of a task object
 interface Task {
   id: string;
@@ -10,7 +13,7 @@ interface Task {
   details: string;
   status: 'PENDING' | 'COMPLETED';
   priority: string;
-  dueDate: { _seconds: number, _nanoseconds: number };
+  dueDate: DueDate;
 }
 
 interface TaskItemProps {
@@ -30,7 +33,6 @@ const ChevronUp = () => <svg width="20" height="20" fill="currentColor" viewBox=
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(task.status === 'PENDING');
 
-  // ... (styles and other functions remain the same) ...
   const styles: { [key: string]: React.CSSProperties } = {
     taskCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)', marginBottom: '15px', borderLeft: '5px solid #4F46E5', transition: 'opacity 0.3s' },
     taskHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
@@ -43,8 +45,27 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
     button: { background: 'none', border: '1px solid #D1D5DB', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: 'background-color 0.2s' },
     foldButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px', color: '#6B7280' },
   };
-  const getPriorityStyle = (priority: string) => { /* ... */ };
-  const formatDate = (timestamp: { _seconds: number }) => { /* ... */ };
+  
+  const getPriorityStyle = (priority: string) => {
+    switch (priority) {
+      case 'HIGH': return { backgroundColor: '#FEE2E2', color: '#991B1B' };
+      case 'MEDIUM': return { backgroundColor: '#FEF3C7', color: '#92400E' };
+      default: return { backgroundColor: '#E0E7FF', color: '#3730A3' };
+    }
+  };
+
+  // This function is now robust and can handle different timestamp formats.
+  const formatDate = (timestamp: DueDate) => {
+    if (!timestamp) return 'N/A';
+    
+    // Check if it's the object from Firestore or a string from JSON
+    if (typeof timestamp === 'string') {
+      return new Date(timestamp).toLocaleDateString();
+    } else if (timestamp._seconds) {
+      return new Date(timestamp._seconds * 1000).toLocaleDateString();
+    }
+    return 'Invalid Date';
+  };
 
   return (
     <div style={{ ...styles.taskCard, opacity: task.status === 'COMPLETED' ? 0.6 : 1, borderLeftColor: task.status === 'COMPLETED' ? '#9CA3AF' : '#4F46E5' }}>
@@ -69,9 +90,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
         </div>
       </div>
       <div style={styles.detailsContainer}>
-        {/* Replace the plain <p> tag with the new MarkdownRenderer component */}
         <MarkdownRenderer content={task.details} />
-
         <div style={styles.taskFooter}>
           <div style={styles.taskMeta}>
             <span>Due: <strong>{formatDate(task.dueDate)}</strong></span>
