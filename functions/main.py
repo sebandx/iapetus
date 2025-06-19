@@ -75,11 +75,9 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print(f"Querying Agent Engine: '{agent}'")
 
         db = firestore.client()
-        course_name = ""
-        course_code = ""
-        # --- NEW: Fetch course details if a courseId exists ---
+        course_name, course_code = "", ""
         if course_id:
-            print(f"Event is linked to courseId: {course_id}. Fetching course details.")
+            print(f"Event linked to courseId: {course_id}. Fetching details.")
             course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
             course_doc = course_ref.get()
             if course_doc.exists:
@@ -87,13 +85,12 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
                 if course_data:
                     course_name = course_data.get("name", "")
                     course_code = course_data.get("code", "")
-                print(f"Found course name: {course_name}")
+                print(f"Found course: {course_name} ({course_code})")
 
         # --- Generate Prerequisite Flashcards ---
         prereq_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 prerequisite review flashcards. Return as a JSON array of objects with 'question' and 'answer' keys." if course_name else f"Generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
         print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
-        
-        prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
+        prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=f"{session.id}-prereq", user_id=user_id)
         prereq_response_text = "".join(event["content"]["parts"][0].get("text", "") for event in prereq_response_stream if "content" in event and event.get("content", {}).get("parts"))
         
         if not prereq_response_text:
@@ -105,8 +102,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         post_lecture_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 flashcards summarizing the key concepts. Return as a JSON array of objects with 'question' and 'answer' keys." if course_name else f"Generate 3-5 flashcards summarizing key concepts for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
         print(f"Querying for post-lecture review with prompt: '{post_lecture_prompt}'")
         
-        # We can reuse the same session for the second query
-        post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=session.id, user_id=user_id)
+        post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=f"{session.id}-postreview", user_id=user_id)
         post_lecture_response_text = "".join(event["content"]["parts"][0].get("text", "") for event in post_lecture_response_stream if "content" in event and event.get("content", {}).get("parts"))
 
         if not post_lecture_response_text:
@@ -118,7 +114,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         tasks_collection = db.collection("users").document(user_id).collection("tasks")
         
         # The correct method name is .to_datetime(), not .ToDatetime()
-        event_start_time = firestore_payload.value.fields["startTime"].timestamp_value.to_datetime()
+        event_start_time = event_fields["startTime"].timestamp_value.to_datetime()
 
         # 1. Prerequisite Task (due before)
         prereq_due_date = event_start_time - datetime.timedelta(days=1)
