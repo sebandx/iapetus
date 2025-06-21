@@ -191,6 +191,36 @@ app.delete('/tasks/:taskId', authenticate, async (req, res) => {
   }
 });
 
+app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
+    try {
+        const { user } = req as any;
+        const { taskId } = req.params;
+        const { userAnswer, isCorrect } = req.body; // The result sent from the frontend
+
+        if (userAnswer === undefined || isCorrect === undefined) {
+            return res.status(400).send({ message: 'Missing quiz result data.' });
+        }
+
+        const db = getFirestore();
+        const taskRef = db.collection('users').doc(user.uid).collection('tasks').doc(taskId);
+
+        // Save the result and mark the task as COMPLETED
+        await taskRef.update({
+            quizResult: {
+                userAnswer,
+                isCorrect
+            },
+            status: 'COMPLETED'
+        });
+
+        res.status(200).send({ message: 'Quiz result saved successfully.' });
+
+    } catch (error) {
+        console.error('Error saving quiz result:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+    }
+});
+
 // --- CREATE Event Endpoint ---
 app.post('/events', authenticate, async (req, res) => {
     try {

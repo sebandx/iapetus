@@ -28,7 +28,7 @@ const ChevronUp = () => <svg width="20" height="20" fill="currentColor" viewBox=
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(task.status === 'PENDING');
 
-  const flashcards = useMemo(() => {
+  const contentData = useMemo(() => {
     const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
     const match = task.details.match(jsonRegex);
     if (match && match[1]) {
@@ -78,15 +78,17 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
       <div style={styles.taskHeader}>
         <h2 style={styles.taskTitle}>{task.title}</h2>
         <div style={styles.actions}>
-          {task.status === 'PENDING' ? (
-            <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button} title="Mark as Done">
-              <CheckIcon /> Mark as Done
-            </button>
-          ) : (
-            <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button} title="Mark as Pending">
-              <UndoIcon /> Mark as Pending
-            </button>
+          {contentData.type !== 'quiz' && task.status === 'PENDING' && (
+              <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button}>
+                  <CheckIcon /> Mark as Done
+              </button>
           )}
+          {contentData.type !== 'quiz' && task.status === 'COMPLETED' && (
+                <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button}>
+                    <UndoIcon /> Mark as Pending
+                </button>
+          )}
+
           <button onClick={() => onDelete(task.id)} style={{...styles.button, color: '#DC2626'}} title="Delete Task">
               <TrashIcon />
           </button>
@@ -97,6 +99,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
       </div>
       
       <div style={styles.detailsContainer}>
+        {contentData.type === 'quiz' && (
+          <Quiz 
+            data={contentData.data} 
+            result={task.quizResult} // Pass existing result to the component
+            onSubmit={(result) => onQuizSubmit(task.id, result)} // Pass the handler
+          />
+        )}
         {flashcards ? (
           <div>
             <p style={{color: '#4B5563', lineHeight: '1.6', marginTop: 0}}>Click on a card to reveal the answer.</p>
