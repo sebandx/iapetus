@@ -54,24 +54,50 @@ app.get('/courses', authenticate, async (req, res) => {
     }
 });
 
-// POST (create) a new course
+// POST (create) a new course - UPDATED to include generationType
 app.post('/courses', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
-        const { name, code } = req.body;
+        const { name, code, generationType } = req.body; // <-- Add generationType
 
         if (!name) {
             return res.status(400).send({ message: 'Course name is required.' });
         }
 
         const db = getFirestore();
-        const newCourse = { name, code: code || '' };
+        const newCourse = {
+            name,
+            code: code || '',
+            generationType: generationType || 'flashcards' // Default to flashcards
+        };
         const docRef = await db.collection('users').doc(user.uid).collection('courses').add(newCourse);
 
         res.status(201).send({ message: 'Course added successfully', id: docRef.id });
-
     } catch (error) {
         console.error('Error adding course:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+    }
+});
+
+// --- NEW --- UPDATE a course's generation preference
+app.put('/courses/:courseId', authenticate, async (req, res) => {
+    try {
+        const { user } = req as any;
+        const { courseId } = req.params;
+        const { generationType } = req.body;
+
+        if (!generationType) {
+            return res.status(400).send({ message: 'Missing "generationType" field.' });
+        }
+
+        const db = getFirestore();
+        const courseRef = db.collection('users').doc(user.uid).collection('courses').doc(courseId);
+        await courseRef.update({ generationType });
+
+        res.status(200).send({ message: 'Course preference updated.' });
+
+    } catch (error) {
+        console.error('Error updating course:', error);
         res.status(500).send({ message: 'Internal Server Error' });
     }
 });

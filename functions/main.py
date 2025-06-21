@@ -77,25 +77,25 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         print(f"Querying Agent Engine: '{agent}'")
 
         db = firestore.client()
-        course_name = ""
-        course_code = ""
-        # --- NEW: Fetch course details if a courseId exists ---
+        course_name, course_code, generation_type = "", "", "flashcards" # Default to flashcards
         if course_id:
-            print(f"Event is linked to courseId: {course_id}. Fetching course details.")
             course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
             course_doc = course_ref.get()
             if course_doc.exists:
-                course_name = course_doc.to_dict().get("name", "")
-                course_code = course_doc.to_dict().get("code", "")
-                print(f"Found course name: {course_name}")
+                course_data = course_doc.to_dict()
+                if course_data:
+                    course_name = course_data.get("name", "")
+                    course_code = course_data.get("code", "")
+                    generation_type = course_data.get("generationType", "flashcards")
 
-        # --- Generate Prerequisite Flashcards ---
-        if course_name:
-            prereq_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 prerequisite review flashcards. Return as a JSON array of objects with 'question' and 'answer' keys." if course_name else f"Generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
-            post_lecture_prompt = f"For the topic '{event_title}' in the course '{course_name}, {course_code}', generate 3-5 flashcards summarizing the key concepts. Return as a JSON array of objects with 'question' and 'answer' keys."
-        else:
-            prereq_prompt = f"Generate 3-5 prerequisite review flashcards for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
-            post_lecture_prompt = f"Generate 3-5 flashcards summarizing key concepts for the topic '{event_title}'. Return as a JSON array of objects with 'question' and 'answer' keys."
+        course_context = f"in the course '{course_name}, {course_code}'" if course_name else ""
+
+        if generation_type == 'quiz':
+            prereq_prompt = f"For the topic '{event_title}' {course_context}, generate a single, comprehensive multiple-choice question with four options to test my knowledge of its prerequisites. Return as a single JSON object with keys: 'question', 'options' (an array of four strings), and 'answer' (the string of the correct option)."
+            post_lecture_prompt = f"For the topic '{event_title}' {course_context}, generate a single, comprehensive multiple-choice question with four options to test my knowledge of its key concepts. Return as a single JSON object with keys: 'question', 'options', and 'answer'."
+        else: # Default to flashcards
+            prereq_prompt = f"For the topic '{event_title}' {course_context}, generate 3-5 prerequisite review flashcards. Return as a JSON array of objects with 'question' and 'answer' keys."
+            post_lecture_prompt = f"For the topic '{event_title}' {course_context}, generate 3-5 flashcards summarizing the key concepts. Return as a JSON array of objects with 'question' and 'answer' keys."
 
         print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
         print(f"Querying Agent Engine with prompt: '{post_lecture_prompt}'")
