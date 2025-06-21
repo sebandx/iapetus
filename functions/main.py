@@ -122,25 +122,25 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
             due_date = event_start_date - datetime.timedelta(days=1)
             
             tasks_collection.add({
-                "title": f"Review flashcards for: {event_title}",
+                "title": f"Pre lecture review flashcards for: {event_title}",
                 "details": prereq_response_text, # This will now be a JSON string
                 "status": "PENDING",
                 "relatedCalendarEventId": event_id,
                 "dueDate": due_date,
                 "priority": "HIGH", # Increased priority for review tasks
             })
-            print(f"Successfully created a new flashcard task for user {user_id}.")
+            print(f"Successfully created a new pre lecture flashcard task for user {user_id}.")
         if post_lecture_response_text:
             post_review_due_date = event_start_date + datetime.timedelta(days=1)
             tasks_collection.add({
-                "title": f"Post review flashcards for: {event_title}",
+                "title": f"Post lecture review flashcards for: {event_title}",
                 "details": prereq_response_text, # This will now be a JSON string
                 "status": "PENDING",
                 "relatedCalendarEventId": event_id,
-                "dueDate": post_lecture_response_text,
+                "dueDate": post_review_due_date,
                 "priority": "HIGH", # Increased priority for review tasks
             })
-            print(f"Received response from Agent Engine: {post_lecture_response_text}")
+            print(f"Successfully created a new post lecture flashcard task for user {user_id}.")
 
     except Exception as e:
         print(f"An error occurred during agent call or Firestore write: {e}")
