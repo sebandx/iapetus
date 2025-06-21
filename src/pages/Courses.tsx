@@ -117,7 +117,14 @@ const Courses = () => {
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Add a New Course</h2>
         <form onSubmit={handleAddCourse} style={styles.form}>
-            {/* ... name and code inputs ... */}
+            <div style={styles.inputGroup}>
+                <label htmlFor="courseName" style={styles.label}>Course Name *</label>
+                <input id="courseName" type="text" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} required style={styles.input} placeholder="e.g., Introduction to Computer Science"/>
+            </div>
+            <div style={styles.inputGroup}>
+                <label htmlFor="courseCode" style={styles.label}>Course Code (Optional)</label>
+                <input id="courseCode" type="text" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} style={styles.input} placeholder="e.g., CS 135"/>
+            </div>
             <div style={{...styles.inputGroup, flexGrow: 0.5}}>
                 <label htmlFor="generationType" style={styles.label}>Review Style</label>
                 <select id="generationType" value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} style={{...styles.input, height: '42px'}}>
