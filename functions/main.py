@@ -165,7 +165,7 @@ Do not provide any introductory text, explanation, or ask for clarification.
         post_review_due_date = event_start_date + datetime.timedelta(days=1)
         tasks_collection.add({
             "title": f"Post lecture review {generation_type} for: {event_title}",
-            "details": prereq_response_text, # This will now be a JSON string
+            "details": post_lecture_response_text, # This will now be a JSON string
             "status": "PENDING",
             "relatedCalendarEventId": event_id,
             "dueDate": post_review_due_date,
