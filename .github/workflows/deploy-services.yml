@@ -95,9 +95,7 @@ jobs:
           region: 'us-central1'
           source: ./backend
 
-  # ======================================================================
-  #  Job 3: Deploy Functions (Cloud Functions for Firebase)
-  # ======================================================================
+  # Job 3: Deploy Functions (Python)
   deploy-functions:
     needs: changes
     if: ${{ needs.changes.outputs.functions == 'true' }}
@@ -121,4 +119,5 @@ jobs:
             --trigger-event-filters="database=(default)" \
             --trigger-event-filters-path-pattern="document=users/{userId}/calendarEvents/{eventId}" \
             --set-env-vars="RAG_CORPUS=${{ secrets.RAG_CORPUS }},AGENT_ENGINE_ID=${{ secrets.AGENT_ENGINE_ID }}" \
-            --memory=512Mi
+            --memory=16Gi \
+            --cpu=4
