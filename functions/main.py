@@ -94,9 +94,9 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
             prereq_prompt = prereq_prompt = f"""
 Your task is to act as a quiz generator. Based ONLY on the provided course material, generate 10 to 20, comprehensive multiple-choice question to test a student's understanding of the prerequisites for the topic '{event_title}' {course_context}.
 
-You MUST return your response as a single, valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+You MUST return your response as an array of valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
 
-The JSON object must have the following keys:
+Each JSON object must have the following keys:
 - "question": A string containing the question.
 - "options": An array of four strings representing the multiple-choice options.
 - "answer": A string containing the exact text of the correct option.
@@ -104,9 +104,9 @@ The JSON object must have the following keys:
             post_lecture_prompt = f"""
 Your task is to act as a quiz generator. Based ONLY on the provided course material, generate 10 to 20, comprehensive multiple-choice question to test a student's understanding of the key concepts from the topic '{event_title}' {course_context}.
 
-You MUST return your response as a single, valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+You MUST return your response as an arryy of valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
 
-The JSON object must have the following keys:
+Each JSON object must have the following keys:
 - "question": A string containing the question.
 - "options": An array of four strings representing the multiple-choice options.
 - "answer": A string containing the exact text of the correct option.
