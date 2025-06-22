@@ -8,13 +8,11 @@ interface QuizData {
   options: string[];
   answer: string;
 }
-
 interface QuizDeckProps {
   quizzes: QuizData[];
   existingResult?: { [key: string]: { userAnswer: string; isCorrect: boolean } };
   onSubmit: (results: { [key: string]: { userAnswer: string; isCorrect: boolean } }) => void;
 }
-
 const ArrowLeftIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"></path></svg>;
 const ArrowRightIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"></path></svg>;
 
@@ -55,6 +53,7 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit }
   return (
     <div style={styles.deckContainer}>
       <Quiz
+        key={currentIndex}
         data={quizzes[currentIndex]}
         userAnswer={existingResult ? existingResult[quizzes[currentIndex].question]?.userAnswer : answers[currentIndex]}
         isSubmitted={isSubmitted}
