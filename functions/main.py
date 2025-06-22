@@ -130,7 +130,7 @@ Do not provide any introductory text, explanation, or ask for clarification.
 """
 
         print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
-        print(f"Querying Agent Engine with prompt: '{post_lecture_prompt}'")
+        print(f"Querying for post-lecture with prompt: '{post_lecture_prompt}'")
 
         # Use stream_query, which is the correct method for Agent Engine
         prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
