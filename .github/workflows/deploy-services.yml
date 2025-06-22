@@ -77,21 +77,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: 'google-github-actions/auth@v2'
+      - name: Deploy to Firebase Functions
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-      - uses: 'google-github-actions/setup-gcloud@v2'
-
-      - name: Deploy Python Cloud Function
-        run: |-
-          gcloud functions deploy on_calendar_event_create \
-            --gen2 \
-            --runtime=python312 \
-            --region=us-central1 \
-            --source=./functions \
-            --entry-point=on_calendar_event_create \
-            --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
-            --trigger-event-filters="database=(default)" \
-            --trigger-event-filters-path-pattern="document=users/{userId}/calendarEvents/{eventId}" \
-            --set-env-vars="RAG_CORPUS=${{ secrets.RAG_CORPUS }},AGENT_ENGINE_ID=${{ secrets.AGENT_ENGINE_ID }}" \
-            --no-cpu-boost
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: 'lithe-creek-462503-v4'
+          # Tell the action to only deploy functions
+          target: functions
