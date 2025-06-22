@@ -91,11 +91,37 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         course_context = f"in the course '{course_name}, {course_code}'" if course_name else ""
 
         if generation_type == 'quiz':
-            prereq_prompt = f"For the topic '{event_title}' {course_context}, generate a single, comprehensive multiple-choice question with four options to test my knowledge of its prerequisites. Return as a single JSON object with keys: 'question', 'options' (an array of four strings), and 'answer' (the string of the correct option)."
-            post_lecture_prompt = f"For the topic '{event_title}' {course_context}, generate a single, comprehensive multiple-choice question with four options to test my knowledge of its key concepts. Return as a single JSON object with keys: 'question', 'options', and 'answer'."
+            prereq_prompt = prereq_prompt = f"""
+Your task is to act as a quiz generator. Based ONLY on the provided course material, generate a single, comprehensive multiple-choice question to test a student's understanding of the prerequisites for the topic '{event_title}' {course_context}.
+
+You MUST return your response as a single, valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+
+The JSON object must have the following keys:
+- "question": A string containing the question.
+- "options": An array of four strings representing the multiple-choice options.
+- "answer": A string containing the exact text of the correct option.
+"""
+            post_lecture_prompt = f"""
+Your task is to act as a quiz generator. Based ONLY on the provided course material, generate a single, comprehensive multiple-choice question to test a student's understanding of the key concepts from the topic '{event_title}' {course_context}.
+
+You MUST return your response as a single, valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+
+The JSON object must have the following keys:
+- "question": A string containing the question.
+- "options": An array of four strings representing the multiple-choice options.
+- "answer": A string containing the exact text of the correct option.
+"""
         else: # Default to flashcards
-            prereq_prompt = f"For the topic '{event_title}' {course_context}, generate 3-5 prerequisite review flashcards. Return as a JSON array of objects with 'question' and 'answer' keys."
-            post_lecture_prompt = f"For the topic '{event_title}' {course_context}, generate 3-5 flashcards summarizing the key concepts. Return as a JSON array of objects with 'question' and 'answer' keys."
+            prereq_prompt = f"""
+Your task is to act as a flashcard generator. Based ONLY on the provided course material, generate 3-5 prerequisite review flashcards for the topic '{event_title}' {course_context}.
+
+You MUST return your response as a single, valid JSON array where each object has a 'question' key and an 'answer' key. Do not provide any introductory text, explanation, or ask for clarification.
+"""
+            post_lecture_prompt = f"""
+Your task is to act as a quiz generator. Based ONLY on the provided course material, generate a single, comprehensive multiple-choice question to test a student's understanding of the key concepts from the topic '{event_title}' {course_context}.
+
+You MUST return your response as a single, valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+"""
 
         print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
         print(f"Querying Agent Engine with prompt: '{post_lecture_prompt}'")
