@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react()],
+    // Add the 'build' configuration object and set 'sourcemap' to true.
+    build: {
+      sourcemap: true,
+    },
     // vite config
     define: {
       __APP_ENV__: JSON.stringify(env.APP_ENV),
