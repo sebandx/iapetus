@@ -10,7 +10,23 @@ initializeApp();
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(cors({ origin: 'https://lithe-creek-462503-v4.web.app' }));
+// Create a list of allowed origins.
+const allowedOrigins = [
+  'https://lithe-creek-462503-v4.web.app', // Your deployed frontend
+  'http://localhost:5173' // Your local dev server
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const authenticate = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
