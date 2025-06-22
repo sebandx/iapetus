@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
-import FlashcardDeck from './FlashcardDeck';
 import QuizDeck from './QuizDeck';
+import FlashcardDeck from './FlashcardDeck';
 
 // --- Interfaces ---
 interface Task {
@@ -13,14 +13,15 @@ interface Task {
   status: 'PENDING' | 'COMPLETED';
   priority: string;
   dueDate: { _seconds: number, _nanoseconds: number } | string;
-  quizResult?: { userAnswer: string; isCorrect: boolean; };
+  quizResult?: { [key: string]: { userAnswer: string; isCorrect: boolean; } };
 }
 
 interface TaskItemProps {
   task: Task;
   onUpdate: (taskId: string, newStatus: 'PENDING' | 'COMPLETED') => void;
   onDelete: (taskId: string) => void;
-  onQuizSubmit: (taskId: string, result: { userAnswer: string; isCorrect: boolean; }) => void;
+  onQuizSubmit: (taskId: string, result: { [key: string]: { userAnswer: string; isCorrect: boolean; } }) => void;
+  isInitiallyExpanded: boolean;
 }
 
 // --- Icons ---
@@ -31,8 +32,8 @@ const ChevronDown = () => <svg width="20" height="20" fill="currentColor" viewBo
 const ChevronUp = () => <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path fillRule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/></svg>;
 
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSubmit }) => {
-  const [isExpanded, setIsExpanded] = useState(task.status === 'PENDING');
+const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSubmit, isInitiallyExpanded }) => {
+  const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded);
 
   const contentData = useMemo(() => {
     try {
@@ -42,17 +43,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
       const parsed = JSON.parse(jsonContent);
 
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Check if the first item has 'options', indicating a quiz
         if ('options' in parsed[0]) {
           return { type: 'quiz', data: parsed };
         }
-        // Otherwise, assume it's flashcards
         if ('question' in parsed[0] && 'answer' in parsed[0]) {
           return { type: 'flashcards', data: parsed };
         }
-      }      
+      }
     } catch (e) {
-      // Not an error, just means it's not JSON
+      // Not valid JSON, so it will fall through to markdown
     }
     return { type: 'markdown', data: task.details };
   }, [task.details]);
@@ -90,22 +89,22 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
       <div style={styles.taskHeader}>
         <h2 style={styles.taskTitle}>{task.title}</h2>
         <div style={styles.actions}>
-            {contentData.type !== 'quiz' && task.status === 'PENDING' && (
-                <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button} title="Mark as Done">
-                    <CheckIcon /> Mark as Done
-                </button>
-            )}
-            {contentData.type !== 'quiz' && task.status === 'COMPLETED' && (
-                <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button} title="Mark as Pending">
-                    <UndoIcon /> Mark as Pending
-                </button>
-            )}
-            <button onClick={() => onDelete(task.id)} style={{...styles.button, color: '#DC2626'}} title="Delete Task">
-                <TrashIcon />
+          {task.status === 'PENDING' && (
+            <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button} title="Mark as Done">
+              <CheckIcon /> Mark as Done
             </button>
-            <button onClick={() => setIsExpanded(!isExpanded)} style={styles.foldButton} aria-label={isExpanded ? "Collapse task" : "Expand task"} title={isExpanded ? "Collapse" : "Expand"}>
-                {isExpanded ? <ChevronUp /> : <ChevronDown />}
+          )}
+          {task.status === 'COMPLETED' && (
+            <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button} title="Mark as Pending">
+              <UndoIcon /> Mark as Pending
             </button>
+          )}
+          <button onClick={() => onDelete(task.id)} style={{ ...styles.button, color: '#DC2626' }} title="Delete Task">
+            <TrashIcon />
+          </button>
+          <button onClick={() => setIsExpanded(!isExpanded)} style={styles.foldButton} aria-label={isExpanded ? "Collapse task" : "Expand task"} title={isExpanded ? "Collapse" : "Expand"}>
+            {isExpanded ? <ChevronUp /> : <ChevronDown />}
+          </button>
         </div>
       </div>
       <div style={styles.detailsContainer}>
@@ -116,18 +115,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
             onSubmit={(results) => onQuizSubmit(task.id, results)}
           />
         )}
-        
         {contentData.type === 'flashcards' && (
           <div>
-            <p style={{color: '#4B5563', lineHeight: '1.6'}}>Click on a card to reveal the answer.</p>
+            <p style={{ color: '#4B5563', lineHeight: 1.6 }}>Click on a card to reveal the answer.</p>
             <FlashcardDeck cards={contentData.data} />
           </div>
         )}
-        
-        {contentData.type === 'markdown' && <MarkdownRenderer content={contentData.data} />}
-
+        {contentData.type === 'markdown' && <MarkdownRenderer content={task.details} />}
         <div style={styles.taskFooter}>
-           <div style={styles.taskMeta}>
+          <div style={styles.taskMeta}>
             <span>Due: <strong>{formatDate(task.dueDate)}</strong></span>
             <span>Priority: <span style={{ ...styles.tag, ...getPriorityStyle(task.priority) }}>{task.priority}</span></span>
           </div>
