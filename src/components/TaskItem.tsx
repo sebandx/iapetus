@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
-import Quiz from './Quiz';
 import FlashcardDeck from './FlashcardDeck';
+import QuizDeck from './QuizDeck';
 
 // --- Interfaces ---
 interface Task {
@@ -41,12 +41,16 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
       const jsonContent = match ? match[1] : task.details;
       const parsed = JSON.parse(jsonContent);
 
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => 'question' in item && 'answer' in item && 'options' in item)) {
-        return { type: 'quiz', data: parsed };
-      }
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => 'question' in item && 'answer' in item)) {
-        return { type: 'flashcards', data: parsed };
-      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Check if the first item has 'options', indicating a quiz
+        if ('options' in parsed[0]) {
+          return { type: 'quiz', data: parsed };
+        }
+        // Otherwise, assume it's flashcards
+        if ('question' in parsed[0] && 'answer' in parsed[0]) {
+          return { type: 'flashcards', data: parsed };
+        }
+      }      
     } catch (e) {
       // Not an error, just means it's not JSON
     }
@@ -106,10 +110,10 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
       </div>
       <div style={styles.detailsContainer}>
         {contentData.type === 'quiz' && (
-          <Quiz 
-            data={contentData.data} 
-            result={task.quizResult}
-            onSubmit={(result) => onQuizSubmit(task.id, result)}
+          <QuizDeck
+            quizzes={contentData.data}
+            existingResult={task.quizResult}
+            onSubmit={(results) => onQuizSubmit(task.id, results)}
           />
         )}
         
