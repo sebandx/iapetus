@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import TaskItem from '../components/TaskItem';
-import ConfirmModal from '../components/ConfirmModal'; // Import the reusable modal
+import ConfirmModal from '../components/ConfirmModal';
 
 interface Task {
   id: string;
@@ -12,6 +12,7 @@ interface Task {
   status: 'PENDING' | 'COMPLETED';
   priority: string;
   dueDate: { _seconds: number, _nanoseconds: number } | string;
+  quizResult?: any;
 }
 
 const TodoList = () => {
@@ -19,11 +20,9 @@ const TodoList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { currentUser } = useAuth();
-  
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    // ... fetching logic remains the same ...
     const fetchTasks = async () => {
       if (!currentUser) { setLoading(false); return; }
       try {
@@ -32,6 +31,11 @@ const TodoList = () => {
         const response = await fetch(`${import.meta.env.VITE_API_URL}/tasks`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!response.ok) throw new Error('Failed to fetch tasks.');
         const data = await response.json();
+        data.sort((a: Task, b: Task) => {
+            const dateA = new Date(typeof a.dueDate === 'string' ? a.dueDate : a.dueDate._seconds * 1000);
+            const dateB = new Date(typeof b.dueDate === 'string' ? b.dueDate : b.dueDate._seconds * 1000);
+            return dateA.getTime() - dateB.getTime(); // Sort by ascending date
+        });
         setTasks(data);
         setError('');
       } catch (err) {
@@ -44,7 +48,6 @@ const TodoList = () => {
   }, [currentUser]);
 
   const handleUpdateTask = async (taskId: string, newStatus: 'PENDING' | 'COMPLETED') => {
-    // ... update logic remains the same ...
     if (!currentUser) return;
     try {
       const token = await currentUser.getIdToken();
@@ -62,12 +65,10 @@ const TodoList = () => {
     }
   };
 
-  // This function now just opens the confirmation modal
   const handleDeleteTask = (taskId: string) => {
     setTaskToDelete(taskId);
   };
-
-  // This function runs when the user confirms the deletion
+  
   const handleConfirmDelete = async () => {
     if (!currentUser || !taskToDelete) return;
     try {
@@ -76,7 +77,6 @@ const TodoList = () => {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      // Remove the task from local state and close the modal
       setTasks(prevTasks => prevTasks.filter(task => task.id !== taskToDelete));
       setTaskToDelete(null);
     } catch (err) {
@@ -84,8 +84,8 @@ const TodoList = () => {
       alert("Failed to delete task.");
     }
   };
-
-  const handleQuizSubmit = async (taskId: string, result: { userAnswer: string; isCorrect: boolean; }) => {
+  
+  const handleQuizSubmit = async (taskId: string, result: any) => {
     if (!currentUser) return;
     try {
       const token = await currentUser.getIdToken();
@@ -94,7 +94,6 @@ const TodoList = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(result),
       });
-      // Optimistically update the UI to show the task as completed with the result
       setTasks(prevTasks => prevTasks.map(task => 
         task.id === taskId ? { ...task, status: 'COMPLETED', quizResult: result } : task
       ));
@@ -104,9 +103,33 @@ const TodoList = () => {
     }
   };
 
-  const pendingTasks = useMemo(() => tasks.filter(task => task.status === 'PENDING'), [tasks]);
-  const completedTasks = useMemo(() => tasks.filter(task => task.status === 'COMPLETED'), [tasks]);
-  const styles = { /* ... styles ... */ };
+  const { dueTodayTasks, upcomingTasks, completedTasks } = useMemo(() => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const pending = tasks.filter(task => task.status === 'PENDING');
+    const completed = tasks.filter(task => task.status === 'COMPLETED');
+    
+    const dueToday = pending.filter(task => {
+        const dueDate = new Date(typeof task.dueDate === 'string' ? task.dueDate : task.dueDate._seconds * 1000);
+        return dueDate <= today;
+    });
+    
+    const upcoming = pending.filter(task => {
+        const dueDate = new Date(typeof task.dueDate === 'string' ? task.dueDate : task.dueDate._seconds * 1000);
+        return dueDate > today;
+    });
+
+    return { dueTodayTasks: dueToday, upcomingTasks: upcoming, completedTasks: completed };
+  }, [tasks]);
+
+  const styles: { [key: string]: React.CSSProperties } = {
+    container: { fontFamily: "'Inter', sans-serif" },
+    title: { fontSize: '2rem', color: '#111827', marginBottom: '20px' },
+    sectionTitle: { fontSize: '1.5rem', color: '#374151', marginTop: '40px', borderBottom: '2px solid #E5E7EB', paddingBottom: '10px' },
+    dueTodayTitle: { fontSize: '1.5rem', color: '#B91C1C', marginTop: '40px', borderBottom: '2px solid #FECACA', paddingBottom: '10px' },
+    emptyMessage: { color: '#6B7280', fontStyle: 'italic' },
+  };
 
   if (loading) return <div>Loading tasks...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
@@ -114,32 +137,40 @@ const TodoList = () => {
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Your To-do List</h1>
-      
-      {/* Pending Tasks Section */}
+
       <section>
-        <h2 style={styles.sectionTitle}>Pending ({pendingTasks.length})</h2>
-        {pendingTasks.length === 0 ? (
-          <p style={styles.emptyMessage}>No pending tasks.</p>
+        <h2 style={styles.dueTodayTitle}>Due Today & Overdue ({dueTodayTasks.length})</h2>
+        {dueTodayTasks.length === 0 ? (
+          <p style={styles.emptyMessage}>Nothing is due today.</p>
         ) : (
-          pendingTasks.map(task => (
+          dueTodayTasks.map(task => (
             <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
           ))
         )}
       </section>
 
-      {/* Completed Tasks Section */}
+      <section>
+        <h2 style={styles.sectionTitle}>Upcoming ({upcomingTasks.length})</h2>
+        {upcomingTasks.length === 0 ? (
+          <p style={styles.emptyMessage}>No upcoming tasks. Create a calendar event to automatically generate some!</p>
+        ) : (
+          upcomingTasks.map(task => (
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
+          ))
+        )}
+      </section>
+
       <section>
         <h2 style={styles.sectionTitle}>Completed ({completedTasks.length})</h2>
         {completedTasks.length === 0 ? (
           <p style={styles.emptyMessage}>No tasks completed yet.</p>
         ) : (
           completedTasks.map(task => (
-            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask}  onQuizSubmit={handleQuizSubmit}  />
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
           ))
         )}
       </section>
 
-      {/* Render the confirmation modal */}
       <ConfirmModal
         isOpen={taskToDelete !== null}
         onClose={() => setTaskToDelete(null)}
