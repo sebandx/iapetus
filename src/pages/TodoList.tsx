@@ -85,6 +85,24 @@ const TodoList = () => {
     }
   };
 
+  const handleQuizSubmit = async (taskId: string, result: { userAnswer: string; isCorrect: boolean; }) => {
+    if (!currentUser) return;
+    try {
+      const token = await currentUser.getIdToken();
+      await fetch(`${import.meta.env.VITE_API_URL}/tasks/${taskId}/quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(result),
+      });
+      // Optimistically update the UI to show the task as completed with the result
+      setTasks(prevTasks => prevTasks.map(task => 
+        task.id === taskId ? { ...task, status: 'COMPLETED', quizResult: result } : task
+      ));
+    } catch (err) {
+      console.error("Failed to submit quiz result:", err);
+      alert("Failed to submit quiz result.");
+    }
+  };
 
   const pendingTasks = useMemo(() => tasks.filter(task => task.status === 'PENDING'), [tasks]);
   const completedTasks = useMemo(() => tasks.filter(task => task.status === 'COMPLETED'), [tasks]);
@@ -104,7 +122,7 @@ const TodoList = () => {
           <p style={styles.emptyMessage}>No pending tasks.</p>
         ) : (
           pendingTasks.map(task => (
-            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
           ))
         )}
       </section>
@@ -116,7 +134,7 @@ const TodoList = () => {
           <p style={styles.emptyMessage}>No tasks completed yet.</p>
         ) : (
           completedTasks.map(task => (
-            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask}  onQuizSubmit={handleQuizSubmit}  />
           ))
         )}
       </section>
