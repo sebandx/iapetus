@@ -1,6 +1,6 @@
 // src/components/QuizDeck.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Quiz from './Quiz';
 
 interface QuizData {
@@ -18,8 +18,34 @@ const ArrowRightIcon = () => <svg width="24" height="24" fill="none" stroke="cur
 
 const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<{ [key: number]: string }>({});
+  
+  const [answers, setAnswers] = useState<{ [key: number]: string }>(() => {
+    if (!existingResult) return {};
+    const initialAnswers: { [key: number]: string } = {};
+    quizzes.forEach((quiz, index) => {
+      const resultForQuestion = existingResult[quiz.question];
+      if (resultForQuestion) {
+        initialAnswers[index] = resultForQuestion.userAnswer;
+      }
+    });
+    return initialAnswers;
+  });
+  
   const [isSubmitted, setIsSubmitted] = useState(!!existingResult);
+
+  useEffect(() => {
+    setIsSubmitted(!!existingResult);
+    if (existingResult) {
+        const initialAnswers: { [key: number]: string } = {};
+        quizzes.forEach((quiz, index) => {
+            const resultForQuestion = existingResult[quiz.question];
+            if (resultForQuestion) {
+                initialAnswers[index] = resultForQuestion.userAnswer;
+            }
+        });
+        setAnswers(initialAnswers);
+    }
+  }, [existingResult, quizzes]);
 
   const handleSelectOption = (option: string) => {
     setAnswers(prev => ({ ...prev, [currentIndex]: option }));
@@ -29,7 +55,7 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit }
     const results: { [key: string]: { userAnswer: string; isCorrect: boolean } } = {};
     quizzes.forEach((quiz, index) => {
       const question = quiz.question;
-      const userAnswer = answers[index];
+      const userAnswer = answers[index] || ''; // Handle case where a question might not be answered
       results[question] = { userAnswer, isCorrect: userAnswer === quiz.answer };
     });
     setIsSubmitted(true);
@@ -55,7 +81,7 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit }
       <Quiz
         key={currentIndex}
         data={quizzes[currentIndex]}
-        userAnswer={existingResult ? existingResult[quizzes[currentIndex].question]?.userAnswer : answers[currentIndex]}
+        userAnswer={answers[currentIndex]}
         isSubmitted={isSubmitted}
         onSelectOption={handleSelectOption}
       />

@@ -12,7 +12,7 @@ interface Task {
   status: 'PENDING' | 'COMPLETED';
   priority: string;
   dueDate: { _seconds: number, _nanoseconds: number } | string;
-  quizResult?: any;
+  quizResult?: { [key: string]: { userAnswer: string; isCorrect: boolean; } }; // --- MODIFIED: Ensure type matches backend
 }
 
 const TodoList = () => {
@@ -34,7 +34,7 @@ const TodoList = () => {
         data.sort((a: Task, b: Task) => {
             const dateA = new Date(typeof a.dueDate === 'string' ? a.dueDate : a.dueDate._seconds * 1000);
             const dateB = new Date(typeof b.dueDate === 'string' ? b.dueDate : b.dueDate._seconds * 1000);
-            return dateA.getTime() - dateB.getTime(); // Sort by ascending date
+            return dateA.getTime() - dateB.getTime();
         });
         setTasks(data);
         setError('');
@@ -144,7 +144,7 @@ const TodoList = () => {
           <p style={styles.emptyMessage}>Nothing is due today.</p>
         ) : (
           dueTodayTasks.map(task => (
-            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} isInitiallyExpanded={true} />
           ))
         )}
       </section>
@@ -155,7 +155,7 @@ const TodoList = () => {
           <p style={styles.emptyMessage}>No upcoming tasks. Create a calendar event to automatically generate some!</p>
         ) : (
           upcomingTasks.map(task => (
-            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} isInitiallyExpanded={true} />
           ))
         )}
       </section>
@@ -166,7 +166,7 @@ const TodoList = () => {
           <p style={styles.emptyMessage}>No tasks completed yet.</p>
         ) : (
           completedTasks.map(task => (
-            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} />
+            <TaskItem key={task.id} task={task} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} onQuizSubmit={handleQuizSubmit} isInitiallyExpanded={false} />
           ))
         )}
       </section>

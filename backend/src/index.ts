@@ -71,11 +71,11 @@ app.get('/courses', authenticate, async (req, res) => {
     }
 });
 
-// POST (create) a new course - UPDATED to include generationType
+// POST (create) a new course
 app.post('/courses', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
-        const { name, code, generationType } = req.body; // <-- Add generationType
+        const { name, code, generationType } = req.body;
 
         if (!name) {
             return res.status(400).send({ message: 'Course name is required.' });
@@ -85,7 +85,7 @@ app.post('/courses', authenticate, async (req, res) => {
         const newCourse = {
             name,
             code: code || '',
-            generationType: generationType || 'flashcards' // Default to flashcards
+            generationType: generationType || 'flashcards'
         };
         const docRef = await db.collection('users').doc(user.uid).collection('courses').add(newCourse);
 
@@ -96,7 +96,7 @@ app.post('/courses', authenticate, async (req, res) => {
     }
 });
 
-// --- NEW --- UPDATE a course's generation preference
+// UPDATE a course's generation preference
 app.put('/courses/:courseId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -135,6 +135,7 @@ app.delete('/courses/:courseId', authenticate, async (req, res) => {
     }
 });
 
+// GET all tasks for the authenticated user
 app.get('/tasks', authenticate, async (req, res) => {
   try {
     const { user } = req as any;
@@ -144,10 +145,9 @@ app.get('/tasks', authenticate, async (req, res) => {
     const snapshot = await tasksCollectionRef.orderBy('dueDate', 'desc').get();
 
     if (snapshot.empty) {
-      return res.status(200).send([]); // Return an empty array if no tasks exist
+      return res.status(200).send([]);
     }
 
-    // Map the documents to an array of task objects
     const tasks = snapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -156,9 +156,9 @@ app.get('/tasks', authenticate, async (req, res) => {
         details: data.details,
         status: data.status,
         priority: data.priority,
-        // Convert Firestore timestamp to a standard ISO string for the frontend
         dueDate: data.dueDate.toDate().toISOString(),
         relatedCalendarEventId: data.relatedCalendarEventId,
+        quizResult: data.quizResult || null, // --- MODIFIED: Ensure quizResult is returned
       };
     });
 
@@ -169,11 +169,12 @@ app.get('/tasks', authenticate, async (req, res) => {
   }
 });
 
+// UPDATE a task's status
 app.put('/tasks/:taskId', authenticate, async (req, res) => {
   try {
     const { user } = req as any;
     const { taskId } = req.params;
-    const { status } = req.body; // We'll only allow updating the status for now
+    const { status } = req.body;
 
     if (!status) {
       return res.status(400).send({ message: 'Missing "status" field for update.' });
@@ -191,6 +192,7 @@ app.put('/tasks/:taskId', authenticate, async (req, res) => {
   }
 });
 
+// DELETE a task
 app.delete('/tasks/:taskId', authenticate, async (req, res) => {
   try {
     const { user } = req as any;
@@ -212,9 +214,9 @@ app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const { taskId } = req.params;
-        const { userAnswer, isCorrect } = req.body; // The result sent from the frontend
+        const quizResult = req.body; // The result sent from the frontend
 
-        if (userAnswer === undefined || isCorrect === undefined) {
+        if (!quizResult) {
             return res.status(400).send({ message: 'Missing quiz result data.' });
         }
 
@@ -223,10 +225,7 @@ app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
 
         // Save the result and mark the task as COMPLETED
         await taskRef.update({
-            quizResult: {
-                userAnswer,
-                isCorrect
-            },
+            quizResult: quizResult, // Save the entire result object
             status: 'COMPLETED'
         });
 
@@ -238,11 +237,11 @@ app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
     }
 });
 
-// --- CREATE Event Endpoint ---
+
+// Event Endpoints (CREATE, UPDATE, DELETE)
 app.post('/events', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
-        // Add courseId to the destructured body
         const { title, startTime, endTime, courseId } = req.body;
 
         if (!title || !startTime || !endTime) {
@@ -254,7 +253,7 @@ app.post('/events', authenticate, async (req, res) => {
             title,
             startTime: new Date(startTime),
             endTime: new Date(endTime),
-            courseId: courseId || null // Save courseId or null
+            courseId: courseId || null
         };
         const docRef = await db.collection('users').doc(user.uid).collection('calendarEvents').add(eventData);
 
@@ -265,12 +264,10 @@ app.post('/events', authenticate, async (req, res) => {
     }
 });
 
-// --- UPDATE Event Endpoint ---
 app.put('/events/:eventId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const { eventId } = req.params;
-        // Add courseId to the destructured body
         const { title, startTime, endTime, courseId } = req.body; 
 
         if (!title || !startTime || !endTime) {
@@ -284,7 +281,7 @@ app.put('/events/:eventId', authenticate, async (req, res) => {
             title,
             startTime: new Date(startTime),
             endTime: new Date(endTime),
-            courseId: courseId || null // Save courseId or null
+            courseId: courseId || null
         });
 
         res.status(200).send({ message: 'Event updated successfully' });
