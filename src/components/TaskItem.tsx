@@ -41,7 +41,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
       const jsonContent = match ? match[1] : task.details;
       const parsed = JSON.parse(jsonContent);
 
-      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'question' in parsed && 'options' in parsed) {
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => 'question' in item && 'answer' in item && 'options' in item)) {
         return { type: 'quiz', data: parsed };
       }
       if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => 'question' in item && 'answer' in item)) {
