@@ -55,7 +55,6 @@ app.get('/courses', authenticate, async (req, res) => {
         res.status(200).send(courses);
     } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
-
 app.post('/courses', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -66,7 +65,6 @@ app.post('/courses', authenticate, async (req, res) => {
         res.status(201).send({ message: 'Course added successfully', id: docRef.id });
     } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
-
 app.put('/courses/:courseId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -78,7 +76,6 @@ app.put('/courses/:courseId', authenticate, async (req, res) => {
         res.status(200).send({ message: 'Course preference updated.' });
     } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
-
 app.delete('/courses/:courseId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -88,6 +85,7 @@ app.delete('/courses/:courseId', authenticate, async (req, res) => {
         res.status(200).send({ message: 'Course deleted successfully' });
     } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
+
 
 // --- Task Endpoints ---
 app.get('/tasks', authenticate, async (req, res) => {
@@ -109,6 +107,7 @@ app.get('/tasks', authenticate, async (req, res) => {
         dueDate: data.dueDate.toDate().toISOString(),
         relatedCalendarEventId: data.relatedCalendarEventId,
         quizResult: data.quizResult || null,
+        taskType: data.taskType || 'default' // --- ADDED THIS LINE ---
       };
     });
     res.status(200).send(tasks);
@@ -126,7 +125,6 @@ app.put('/tasks/:taskId', authenticate, async (req, res) => {
     res.status(200).send({ message: 'Task updated successfully' });
   } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
-
 app.delete('/tasks/:taskId', authenticate, async (req, res) => {
   try {
     const { user } = req as any;
@@ -136,31 +134,21 @@ app.delete('/tasks/:taskId', authenticate, async (req, res) => {
     res.status(200).send({ message: 'Task deleted successfully' });
   } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
-
 app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const { taskId } = req.params;
         const newQuizResult = req.body;
-
         if (!newQuizResult) return res.status(400).send({ message: 'Missing quiz result data.' });
-        
         const db = getFirestore();
         const taskRef = db.collection('users').doc(user.uid).collection('tasks').doc(taskId);
-
         const doc = await taskRef.get();
         if (!doc.exists) return res.status(404).send({ message: 'Task not found.' });
-
         const existingResult = doc.data()?.quizResult || {};
         const mergedResult = { ...existingResult, ...newQuizResult };
-
         await taskRef.update({ quizResult: mergedResult });
-
         res.status(200).send({ message: 'Quiz result saved successfully.' });
-    } catch (error) {
-        console.error('Error saving quiz result:', error);
-        res.status(500).send({ message: 'Internal Server Error' });
-    }
+    } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
 
 

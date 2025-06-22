@@ -9,9 +9,7 @@ from google.events.cloud.firestore_v1.types import DocumentEventData
 from google.adk.sessions import VertexAiSessionService
 import asyncio
 
-# --- Corrected Imports to match the working sample ---
 import vertexai
-# The 'agent_engines' module is now directly under the 'vertexai' namespace, not 'preview'.
 from vertexai import agent_engines
 
 # --- Initialization ---
@@ -47,12 +45,9 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
 
-    # --- THE FIX ---
-    # The 'data' payload is a Protobuf message. We decode it into a structured object.
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
 
-    # Now we can safely access the fields from the decoded payload
     event_title = firestore_payload.value.fields["title"].string_value
     course_id = firestore_payload.value.fields["courseId"].string_value
 
@@ -66,7 +61,6 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
     print(f"Querying Agent Engine with title: '{event_title}', to agent: '{AGENT_ENGINE_ID}'")
 
-    # --- Corrected Agent Engine Query based on your working script ---
     session_service = VertexAiSessionService(project=PROJECT_ID,location=LOCATION)
     session = asyncio.run(session_service.create_session(
         app_name=AGENT_ENGINE_ID,
@@ -76,7 +70,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     print(f"Querying Agent Engine: '{agent}'")
 
     db = firestore.client()
-    course_name, course_code, generation_type = "", "", "flashcards" # Default to flashcards
+    course_name, course_code, generation_type = "", "", "flashcards"
     if course_id:
         course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
         course_doc = course_ref.get()
@@ -90,7 +84,7 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     course_context = f"in the course '{course_name}, {course_code}'" if course_name else ""
 
     if generation_type == 'quiz':
-        prereq_prompt = prereq_prompt = f"""
+        prereq_prompt = f"""
 Your task is to act as a quiz generator. Based ONLY on the provided course material, identify the foundational concepts that a student must understand *before* they can begin learning about the main topic: '{event_title}' {course_context}.
 
 Then, based on those prerequisite topics ONLY, generate between 10 and 20 multiple-choice questions. Do NOT ask questions about '{event_title}' itself.
@@ -131,7 +125,6 @@ Do not provide any introductory text, explanation, or ask for clarification.
     print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
     print(f"Querying for post-lecture with prompt: '{post_lecture_prompt}'")
 
-    # Use stream_query, which is the correct method for Agent Engine
     prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
     prereq_response_text = "".join(
         event["content"]["parts"][0].get("text", "")
@@ -148,27 +141,29 @@ Do not provide any introductory text, explanation, or ask for clarification.
     tasks_collection = db.collection("users").document(user_id).collection("tasks")
     event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
     event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
-    tasks_collection = db.collection("users").document(user_id).collection("tasks")
+    
     if prereq_response_text:
         due_date = event_start_date - datetime.timedelta(days=1)
-        
         tasks_collection.add({
             "title": f"Pre lecture review {generation_type} for: {event_title}",
-            "details": prereq_response_text, # This will now be a JSON string
+            "details": prereq_response_text,
             "status": "PENDING",
             "relatedCalendarEventId": event_id,
             "dueDate": due_date,
-            "priority": "HIGH", # Increased priority for review tasks
+            "priority": "HIGH",
+            "taskType": "pre-lecture"
         })
-        print(f"Successfully created a new pre lecture {generation_type} task for user {user_id}.")
+        print(f"Successfully created a new pre-lecture {generation_type} task for user {user_id}.")
+        
     if post_lecture_response_text:
         post_review_due_date = event_start_date + datetime.timedelta(days=1)
         tasks_collection.add({
             "title": f"Post lecture review {generation_type} for: {event_title}",
-            "details": post_lecture_response_text, # This will now be a JSON string
+            "details": post_lecture_response_text,
             "status": "PENDING",
             "relatedCalendarEventId": event_id,
             "dueDate": post_review_due_date,
-            "priority": "HIGH", # Increased priority for review tasks
+            "priority": "HIGH",
+            "taskType": "post-lecture"
         })
-        print(f"Successfully created a new post lecture {generation_type} task for user {user_id}.")
+        print(f"Successfully created a new post-lecture {generation_type} task for user {user_id}.")

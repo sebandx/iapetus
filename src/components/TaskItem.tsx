@@ -14,6 +14,7 @@ interface Task {
   priority: string;
   dueDate: { _seconds: number, _nanoseconds: number } | string;
   quizResult?: { [key: string]: { userAnswer: string; isCorrect: boolean; } };
+  taskType?: 'pre-lecture' | 'post-lecture' | 'default';
 }
 
 interface TaskItemProps {
@@ -34,16 +35,6 @@ const ChevronUp = () => <svg width="20" height="20" fill="currentColor" viewBox=
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSubmit, isInitiallyExpanded }) => {
   const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded);
-
-  const taskType = useMemo(() => {
-    if (task.title.toLowerCase().includes('pre lecture')) {
-      return 'pre-lecture';
-    }
-    if (task.title.toLowerCase().includes('post lecture')) {
-      return 'post-lecture';
-    }
-    return 'default';
-  }, [task.title]);
 
   const contentData = useMemo(() => {
     try {
@@ -123,8 +114,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
             quizzes={contentData.data}
             existingResult={task.quizResult}
             onSubmit={(results) => onQuizSubmit(task.id, results)}
-            // --- MODIFICATION: Pass taskType and onUpdate ---
-            taskType={taskType}
+            taskType={task.taskType || 'default'}
             onTaskComplete={() => onUpdate(task.id, 'COMPLETED')}
           />
         )}

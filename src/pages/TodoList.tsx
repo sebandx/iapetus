@@ -12,7 +12,8 @@ interface Task {
   status: 'PENDING' | 'COMPLETED';
   priority: string;
   dueDate: { _seconds: number, _nanoseconds: number } | string;
-  quizResult?: { [key: string]: { userAnswer: string; isCorrect: boolean; } }; // --- MODIFIED: Ensure type matches backend
+  quizResult?: { [key: string]: { userAnswer: string; isCorrect: boolean; } };
+  taskType?: 'pre-lecture' | 'post-lecture' | 'default';
 }
 
 const TodoList = () => {
@@ -95,7 +96,7 @@ const TodoList = () => {
         body: JSON.stringify(result),
       });
       setTasks(prevTasks => prevTasks.map(task => 
-        task.id === taskId ? { ...task, status: 'COMPLETED', quizResult: result } : task
+        task.id === taskId ? { ...task, quizResult: {...task.quizResult, ...result} } : task
       ));
     } catch (err) {
       console.error("Failed to submit quiz result:", err);
