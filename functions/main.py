@@ -92,35 +92,41 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
 
         if generation_type == 'quiz':
             prereq_prompt = prereq_prompt = f"""
-Your task is to act as a quiz generator. Based ONLY on the provided course material, generate 10 to 20, comprehensive multiple-choice question to test a student's understanding of the prerequisites for the topic '{event_title}' {course_context}.
+Your task is to act as a quiz generator. Based ONLY on the provided course material, identify the foundational concepts that a student must understand *before* they can begin learning about the main topic: '{event_title}' {course_context}.
 
-You MUST return your response as an array of valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+Then, based on those prerequisite topics ONLY, generate between 10 and 20 multiple-choice questions. Do NOT ask questions about '{event_title}' itself.
 
-Each JSON object must have the following keys:
-- "question": A string containing the question.
+You MUST return your response as a single, valid JSON array where each object has the following keys:
+- "question": A string containing the question about a prerequisite concept.
 - "options": An array of four strings representing the multiple-choice options.
 - "answer": A string containing the exact text of the correct option.
 """
             post_lecture_prompt = f"""
-Your task is to act as a quiz generator. Based ONLY on the provided course material, generate 10 to 20, comprehensive multiple-choice question to test a student's understanding of the key concepts from the topic '{event_title}' {course_context}.
+Your task is to act as a quiz generator. Based ONLY on the provided course material, generate between 10 and 20 multiple-choice questions that summarize and test the most important key concepts *from within* the topic '{event_title}' {course_context}.
 
-You MUST return your response as an arryy of valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
-
-Each JSON object must have the following keys:
-- "question": A string containing the question.
+You MUST return your response as a single, valid JSON array where each object has the following keys:
+- "question": A string containing the question about the main topic.
 - "options": An array of four strings representing the multiple-choice options.
 - "answer": A string containing the exact text of the correct option.
 """
         else: # Default to flashcards
             prereq_prompt = f"""
-Your task is to act as a flashcard generator. Based ONLY on the provided course material, generate 10 to 20 prerequisite review flashcards for the topic '{event_title}' {course_context}.
+Your task is to act as a flashcard generator. Based ONLY on the provided course material, identify the foundational concepts that a student must understand *before* they can begin learning about the main topic: '{event_title}' {course_context}.
 
-You MUST return your response as a single, valid JSON array where each object has a 'question' key and an 'answer' key. Do not provide any introductory text, explanation, or ask for clarification.
+Then, based on those prerequisite topics ONLY, generate between 10 and 20 flashcards. Do NOT create flashcards about '{event_title}' itself.
+
+You MUST return your response as a single, valid JSON array where each object has the following keys:
+- "question": A string containing the question or term for the flashcard.
+- "answer": A string containing the definition or answer.
+Do not provide any introductory text, explanation, or ask for clarification.
 """
             post_lecture_prompt = f"""
-Your task is to act as a quiz generator. Based ONLY on the provided course material, generate 10 to 20, comprehensive multiple-choice question to test a student's understanding of the key concepts from the topic '{event_title}' {course_context}.
+Your task is to act as a flashcard generator. Based ONLY on the provided course material, generate between 10 and 20 flashcards that summarize and test the most important key concepts *from within* the topic '{event_title}' {course_context}.
 
-You MUST return your response as a single, valid JSON object and nothing else. Do not provide any introductory text, explanation, or ask for clarification.
+You MUST return your response as a single, valid JSON array where each object has the following keys:
+- "question": A string containing the question or term for the flashcard.
+- "answer": A string containing the definition or answer.
+Do not provide any introductory text, explanation, or ask for clarification.
 """
 
         print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
@@ -148,7 +154,7 @@ You MUST return your response as a single, valid JSON object and nothing else. D
             due_date = event_start_date - datetime.timedelta(days=1)
             
             tasks_collection.add({
-                "title": f"Pre lecture review flashcards for: {event_title}",
+                "title": f"Pre lecture review {generation_type} for: {event_title}",
                 "details": prereq_response_text, # This will now be a JSON string
                 "status": "PENDING",
                 "relatedCalendarEventId": event_id,
@@ -159,7 +165,7 @@ You MUST return your response as a single, valid JSON object and nothing else. D
         if post_lecture_response_text:
             post_review_due_date = event_start_date + datetime.timedelta(days=1)
             tasks_collection.add({
-                "title": f"Post lecture review flashcards for: {event_title}",
+                "title": f"Post lecture review {generation_type} for: {event_title}",
                 "details": prereq_response_text, # This will now be a JSON string
                 "status": "PENDING",
                 "relatedCalendarEventId": event_id,
