@@ -70,7 +70,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSub
     taskCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)', marginBottom: '15px', borderLeft: '5px solid #4F46E5', transition: 'opacity 0.3s' },
     taskHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' },
     taskTitle: { margin: 0, fontSize: '1.2rem', color: '#1F2937' },
-    detailsContainer: { maxHeight: isExpanded ? '2000px' : '0', overflow: 'hidden', transition: 'max-height 0.5s ease-in-out, paddingTop: isExpanded ? '10px' : '0' },
+    detailsContainer: { maxHeight: isExpanded ? '2000px' : '0', overflow: 'hidden', transition: 'max-height 0.5s ease-in-out, padding 0.5s ease-in-out', paddingTop: isExpanded ? '10px' : '0' },
     taskFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' },
     taskMeta: { display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#6B7280', alignItems: 'center' },
     tag: { padding: '4px 10px', borderRadius: '12px', fontWeight: 500, fontSize: '0.8rem' },
