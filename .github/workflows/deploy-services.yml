@@ -1,19 +1,15 @@
 # .github/workflows/deploy-services.yml
 
-name: Deploy Frontend, Backend, and Functions
+name: Deploy All Services
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  # ======================================================================
-  #  Job 0: Check for Path Changes
-  #  This job runs first and determines which services have changed.
-  # ======================================================================
+  # Job 0: Check for Path Changes
   changes:
     runs-on: ubuntu-22.04
-    # Set outputs that other jobs can use
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -27,69 +23,48 @@ jobs:
             frontend:
               - 'src/**'
               - 'public/**'
-              - 'index.html'
-              - 'vite.config.ts'
             backend:
               - 'backend/**'
             functions:
               - 'functions/**'
 
-  # ======================================================================
-  #  Job 1: Deploy Frontend (Firebase Hosting)
-  # ======================================================================
+  # Job 1: Deploy Frontend (Firebase Hosting)
   deploy-frontend:
-    needs: changes # This job depends on the 'changes' job
-    if: ${{ needs.changes.outputs.frontend == 'true' }} # Only runs if frontend files changed
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Clear npm cache
-        run: npm cache clean --force
-
-      - name: Install Frontend Dependencies
-        run: npm ci
-
-      - name: Build Frontend
-        run: npm run build
+      - run: npm ci
+      - run: npm run build
         env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          # --- ADD THIS LINE ---
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
           projectId: 'lithe-creek-462503-v4'
 
-  # ======================================================================
-  #  Job 2: Deploy Backend (Cloud Run)
-  # ======================================================================
+  # Job 2: Deploy Backend (Cloud Run)
   deploy-backend:
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v2'
+      - uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
-      - id: 'deploy'
-        uses: 'google-github-actions/deploy-cloudrun@v2'
+      - uses: 'google-github-actions/deploy-cloudrun@v2'
         with:
           service: 'study-planner-api'
           region: 'us-central1'
@@ -119,5 +94,4 @@ jobs:
             --trigger-event-filters="database=(default)" \
             --trigger-event-filters-path-pattern="document=users/{userId}/calendarEvents/{eventId}" \
             --set-env-vars="RAG_CORPUS=${{ secrets.RAG_CORPUS }},AGENT_ENGINE_ID=${{ secrets.AGENT_ENGINE_ID }}" \
-            --memory=16Gi \
-            --cpu=4
+            --no-cpu-boost
