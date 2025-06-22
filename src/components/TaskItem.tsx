@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import Flashcard from './Flashcard';
+import Quiz from './Quiz';
 
 // --- Interfaces and Icons ---
 interface Task {
@@ -12,11 +13,13 @@ interface Task {
   status: 'PENDING' | 'COMPLETED';
   priority: string; 
   dueDate: { _seconds: number, _nanoseconds: number } | string;
+  quizResult?: { userAnswer: string; isCorrect: boolean; };
 }
 interface TaskItemProps {
   task: Task;
-  onUpdate: (taskId: string, newStatus: 'PENDING' | 'COMPLETED') => void;
-  onDelete: (taskId: string) => void;
+  onUpdate: (id: string, status: 'PENDING' | 'COMPLETED') => void;
+  onDelete: (id: string) => void;
+  onQuizSubmit: (taskId: string, result: { userAnswer: string; isCorrect: boolean; }) => void;
 }
 const CheckIcon = () => <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>;
 const TrashIcon = () => <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>;
@@ -25,24 +28,30 @@ const ChevronDown = () => <svg width="20" height="20" fill="currentColor" viewBo
 const ChevronUp = () => <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path fillRule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/></svg>;
 
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onQuizSubmit }) => {
   const [isExpanded, setIsExpanded] = useState(task.status === 'PENDING');
 
   const contentData = useMemo(() => {
-    const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-    const match = task.details.match(jsonRegex);
-    if (match && match[1]) {
-      try {
-        const jsonContent = match[1];
-        const parsed = JSON.parse(jsonContent);
-        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'object' && item !== null && 'question' in item && 'answer' in item)) {
-          return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to parse task details as JSON flashcards:", e);
+    try {
+      const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+      const match = task.details.match(jsonRegex);
+      const jsonContent = match ? match[1] : task.details;
+      
+      const parsed = JSON.parse(jsonContent);
+
+      // Check if it's a quiz (single object with question, options, answer)
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && 'question' in parsed && 'options' in parsed) {
+        return { type: 'quiz', data: parsed };
       }
+
+      // Check if it's flashcards (array of objects with question, answer)
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(item => 'question' in item && 'answer' in item)) {
+        return { type: 'flashcards', data: parsed };
+      }
+    } catch (e) {
+      // It's not valid JSON, so we'll treat it as plain text/markdown
     }
-    return null;
+    return { type: 'markdown', data: task.details };
   }, [task.details]);
 
   const styles: { [key: string]: React.CSSProperties } = {
@@ -78,44 +87,44 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete }) => {
       <div style={styles.taskHeader}>
         <h2 style={styles.taskTitle}>{task.title}</h2>
         <div style={styles.actions}>
-          {contentData.type !== 'quiz' && task.status === 'PENDING' && (
-              <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button}>
-                  <CheckIcon /> Mark as Done
-              </button>
-          )}
-          {contentData.type !== 'quiz' && task.status === 'COMPLETED' && (
-                <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button}>
+            {contentData.type !== 'quiz' && task.status === 'PENDING' && (
+                <button onClick={() => onUpdate(task.id, 'COMPLETED')} style={styles.button} title="Mark as Done">
+                    <CheckIcon /> Mark as Done
+                </button>
+            )}
+            {contentData.type !== 'quiz' && task.status === 'COMPLETED' && (
+                <button onClick={() => onUpdate(task.id, 'PENDING')} style={styles.button} title="Mark as Pending">
                     <UndoIcon /> Mark as Pending
                 </button>
-          )}
-
-          <button onClick={() => onDelete(task.id)} style={{...styles.button, color: '#DC2626'}} title="Delete Task">
-              <TrashIcon />
-          </button>
-          <button onClick={() => setIsExpanded(!isExpanded)} style={styles.foldButton} aria-label={isExpanded ? "Collapse task" : "Expand task"} title={isExpanded ? "Collapse" : "Expand"}>
-              {isExpanded ? <ChevronUp /> : <ChevronDown />}
-          </button>
+            )}
+            <button onClick={() => onDelete(task.id)} style={{...styles.button, color: '#DC2626'}} title="Delete Task">
+                <TrashIcon />
+            </button>
+            <button onClick={() => setIsExpanded(!isExpanded)} style={styles.foldButton} aria-label={isExpanded ? "Collapse task" : "Expand task"} title={isExpanded ? "Collapse" : "Expand"}>
+                {isExpanded ? <ChevronUp /> : <ChevronDown />}
+            </button>
         </div>
       </div>
-      
       <div style={styles.detailsContainer}>
         {contentData.type === 'quiz' && (
           <Quiz 
             data={contentData.data} 
-            result={task.quizResult} // Pass existing result to the component
-            onSubmit={(result) => onQuizSubmit(task.id, result)} // Pass the handler
+            result={task.quizResult}
+            onSubmit={(result) => onQuizSubmit(task.id, result)}
           />
         )}
-        {flashcards ? (
+        
+        {contentData.type === 'flashcards' && (
           <div>
-            <p style={{color: '#4B5563', lineHeight: '1.6', marginTop: 0}}>Click on a card to reveal the answer.</p>
-            {flashcards.map((card: any, index: number) => (
+            <p style={{color: '#4B5563', lineHeight: '1.6'}}>Click on a card to reveal the answer.</p>
+            {contentData.data.map((card: any, index: number) => (
               <Flashcard key={index} question={card.question} answer={card.answer} />
             ))}
           </div>
-        ) : (
-          <MarkdownRenderer content={task.details} />
         )}
+        
+        {contentData.type === 'markdown' && <MarkdownRenderer content={contentData.data} />}
+
         <div style={styles.taskFooter}>
            <div style={styles.taskMeta}>
             <span>Due: <strong>{formatDate(task.dueDate)}</strong></span>
