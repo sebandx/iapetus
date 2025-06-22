@@ -1,87 +1,14 @@
 # .github/workflows/deploy-services.yml
 
-name: Deploy All Services
+name: Test Workflow Trigger
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  # Job 0: Check for Path Changes
-  changes:
-    runs-on: ubuntu-22.04
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-      functions: ${{ steps.filter.outputs.functions }}
+  test-trigger-job:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            frontend:
-              - 'src/**'
-              - 'public/**'
-            backend:
-              - 'backend/**'
-            functions:
-              - 'functions/**'
-
-  # Job 1: Deploy Frontend (Firebase Hosting)
-  deploy-frontend:
-    needs: changes
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm ci
-      - run: npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: 'lithe-creek-462503-v4'
-
-  # Job 2: Deploy Backend (Cloud Run)
-  deploy-backend:
-    needs: changes
-    if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: 'google-github-actions/auth@v2'
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-      - uses: 'google-github-actions/deploy-cloudrun@v2'
-        with:
-          service: 'study-planner-api'
-          region: 'us-central1'
-          source: ./backend
-
-  # Job 3: Deploy Functions (Python)
-  deploy-functions:
-    needs: changes
-    if: ${{ needs.changes.outputs.functions == 'true' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Firebase Functions
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: 'lithe-creek-462503-v4'
-          # Tell the action to only deploy functions
-          target: functions
+      - name: A simple step to confirm the workflow is running
+        run: echo "The deploy-services.yml workflow was triggered successfully!"
