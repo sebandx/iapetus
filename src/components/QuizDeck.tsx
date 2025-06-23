@@ -22,8 +22,6 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [isSubmitted, setIsSubmitted] = useState(!!existingResult);
-  
-  // --- MODIFICATION: State for pre-lecture mode ---
   const [attemptedAnswer, setAttemptedAnswer] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,7 +30,7 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
         const initialAnswers: { [key: number]: string } = {};
         quizzes.forEach((quiz, index) => {
             const resultForQuestion = existingResult[quiz.question];
-            if (resultForQuestion) {
+            if (resultForQuestion?.isCorrect) { // Only load correct answers
                 initialAnswers[index] = resultForQuestion.userAnswer;
             }
         });
@@ -40,25 +38,24 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
     }
   }, [existingResult, quizzes]);
 
-  // --- MODIFICATION: New handler for selecting an option ---
   const handleSelectOption = (option: string) => {
     if (taskType === 'pre-lecture') {
-        if (attemptedAnswer) return; // Don't allow changing answer after first attempt
-        
-        setAttemptedAnswer(option);
-        const isCorrect = option === quizzes[currentIndex].answer;
-        if (isCorrect) {
-            setAnswers(prev => ({ ...prev, [currentIndex]: option }));
-            onSubmit({ [quizzes[currentIndex].question]: { userAnswer: option, isCorrect: true } });
-            
-            // If it's the last question, mark the entire task as complete
-            if (currentIndex === quizzes.length - 1) {
-                onTaskComplete();
-            }
-        }
-    } else {
-        // Post-lecture behavior remains the same
+      if (answers[currentIndex]) return; // Already answered correctly, do nothing.
+
+      const isCorrect = option === quizzes[currentIndex].answer;
+      setAttemptedAnswer(option); // Show feedback for the attempted answer.
+      
+      if (isCorrect) {
         setAnswers(prev => ({ ...prev, [currentIndex]: option }));
+        onSubmit({ [quizzes[currentIndex].question]: { userAnswer: option, isCorrect: true } });
+        if (currentIndex === quizzes.length - 1) {
+          onTaskComplete();
+        }
+      }
+      // If incorrect, we do NOT save it. The user can try again.
+    } else {
+      // Post-lecture mode: just record the selection.
+      setAnswers(prev => ({ ...prev, [currentIndex]: option }));
     }
   };
 
@@ -71,7 +68,7 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
     });
     setIsSubmitted(true);
     onSubmit(results);
-    onTaskComplete(); // Mark post-lecture task as complete on submit
+    onTaskComplete();
   };
   
   const calculateScore = () => {
@@ -79,14 +76,13 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
       return Object.values(existingResult).filter(r => r.isCorrect).length;
   }
   
-  // --- MODIFICATION: New navigation logic for pre-lecture ---
   const goToNext = () => {
-    setAttemptedAnswer(null); // Reset attempt for the new question
+    setAttemptedAnswer(null); 
     setCurrentIndex(prev => Math.min(quizzes.length - 1, prev + 1));
   };
   
   const goToPrevious = () => {
-    setAttemptedAnswer(null); // Reset attempt
+    setAttemptedAnswer(null);
     setCurrentIndex(prev => Math.max(0, prev - 1));
   }
 
@@ -108,9 +104,10 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
       <Quiz
         key={currentIndex}
         data={quizzes[currentIndex]}
-        userAnswer={taskType === 'pre-lecture' ? attemptedAnswer : answers[currentIndex]}
-        isSubmitted={taskType === 'pre-lecture' ? !!attemptedAnswer : isSubmitted}
+        userAnswer={isPreLectureCorrect ? answers[currentIndex] : attemptedAnswer}
+        isSubmitted={!!attemptedAnswer || isSubmitted}
         onSelectOption={handleSelectOption}
+        taskType={taskType}
       />
       <div style={styles.navigation}>
         <button onClick={goToPrevious} style={styles.arrowButton} disabled={currentIndex === 0}><ArrowLeftIcon /></button>
@@ -134,7 +131,7 @@ const QuizDeck: React.FC<QuizDeckProps> = ({ quizzes, existingResult, onSubmit, 
           </button>
         </div>
       )}
-      {isSubmitted && <p style={styles.score}>Your Score: {calculateScore()} / {quizzes.length}</p>}
+      {isSubmitted && taskType !== 'pre-lecture' && <p style={styles.score}>Your Score: {calculateScore()} / {quizzes.length}</p>}
     </div>
   );
 };
