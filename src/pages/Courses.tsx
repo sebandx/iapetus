@@ -14,9 +14,9 @@ interface Course {
   code?: string;
   generationType: 'flashcards' | 'quiz';
   schedule?: Schedule[];
-  // ADDED: Term date properties
   termStartDate?: string; 
   termEndDate?: string;
+  timezoneOffset?: number;
 }
 
 
@@ -43,7 +43,6 @@ const Courses = () => {
   const [newCourseCode, setNewCourseCode] = useState('');
   const [newCourseType, setNewCourseType] = useState<'flashcards' | 'quiz'>('flashcards');
   const [newSchedule, setNewSchedule] = useState<Array<Schedule & { id: number }>>([]);
-  // ADDED: State for new course term dates
   const [newTermStartDate, setNewTermStartDate] = useState(getCurrentYearMonth(0));
   const [newTermEndDate, setNewTermEndDate] = useState(getCurrentYearMonth(4));
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
@@ -89,14 +88,14 @@ const Courses = () => {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/courses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        // UPDATED: Added term dates to the request body
         body: JSON.stringify({ 
           name: newCourseName, 
           code: newCourseCode, 
           generationType: newCourseType,
           schedule: scheduleToSave,
           termStartDate: newTermStartDate,
-          termEndDate: newTermEndDate
+          termEndDate: newTermEndDate,
+          timezoneOffset: new Date().getTimezoneOffset(),
         }),
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to add course.');
@@ -193,7 +192,6 @@ const Courses = () => {
                 <div style={styles.inputGroup}><label htmlFor="courseCode" style={styles.label}>Course Code</label><input id="courseCode" type="text" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} style={styles.input} placeholder="e.g., PSYC 101"/></div>
                 <div style={styles.inputGroup}><label htmlFor="generationType" style={styles.label}>Review Style</label><select id="generationType" value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} style={{...styles.input, height: '44px'}}><option value="flashcards">Flashcards</option><option value="quiz">Quiz</option></select></div>
             </div>
-            {/* ADDED: Term Information Section */}
             <div style={styles.scheduleSection}>
                 <h3 style={styles.scheduleTitle}><CalendarIcon/> Term Information</h3>
                 <div style={{...styles.formGrid, gridTemplateColumns: '1fr 1fr', marginTop: '15px'}}>
@@ -263,7 +261,6 @@ const CourseDisplay = ({ course, onEdit, onDelete, onTypeChange }: { course: Cou
             <div style={styles.courseInfo}>
                 <strong style={{color: '#1F2937', fontSize: '1.1rem'}}>{course.name}</strong>
                 {course.code && <span style={{color: '#6B7280', fontSize: '0.9rem'}}>({course.code})</span>}
-                {/* ADDED: Display for term dates */}
                 {course.termStartDate && <span style={styles.termInfo}>{`${formatTermDate(course.termStartDate)} - ${formatTermDate(course.termEndDate)}`}</span>}
             </div>
             <div style={styles.courseActions}>
@@ -297,14 +294,12 @@ const EditCourseForm = ({ course, onSave, onCancel }: { course: Course; onSave: 
     const [code, setCode] = useState(course.code || '');
     const [generationType, setGenerationType] = useState(course.generationType);
     const [schedule, setSchedule] = useState((course.schedule || []).map((s, i) => ({...s, id: i})));
-    // ADDED: State for editing term dates
     const [termStartDate, setTermStartDate] = useState(course.termStartDate || getCurrentYearMonth(0));
     const [termEndDate, setTermEndDate] = useState(course.termEndDate || getCurrentYearMonth(4));
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         const scheduleToSave = schedule.map(({ id, ...rest }) => rest);
-        // UPDATED: Pass term dates on save
         onSave(course.id, { name, code, generationType, schedule: scheduleToSave, termStartDate, termEndDate });
     };
 
