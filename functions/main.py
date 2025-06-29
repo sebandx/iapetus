@@ -70,15 +70,27 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
 
-    # If the 'value' field is missing, the document was deleted.
     if not firestore_payload.value.fields:
         print(f"Event {event_id} was deleted. Deleting associated tasks.")
         asyncio.run(delete_tasks_for_event(db, user_id, event_id))
         return
 
     # --- Handle Event Creation or Update ---
+    
+    # ADDED: Check if the event is within the next two weeks before proceeding
+    event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
+    event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
+    
+    now = datetime.datetime.now(datetime.timezone.utc)
+    two_weeks_from_now = now + datetime.timedelta(weeks=2)
+
+    if not (now <= event_start_date <= two_weeks_from_now):
+        print(f"Event {event_id} is not within the next two weeks. Deleting any stale tasks and skipping generation.")
+        asyncio.run(delete_tasks_for_event(db, user_id, event_id))
+        return
+
     # First, delete any old tasks to ensure a clean slate
-    print(f"Event {event_id} was created or updated. Syncing tasks...")
+    print(f"Event {event_id} is upcoming. Syncing tasks...")
     asyncio.run(delete_tasks_for_event(db, user_id, event_id))
 
     # Now, proceed with generating new tasks using the latest data
@@ -172,8 +184,6 @@ Do not provide any introductory text, explanation, or ask for clarification.
         if "content" in event and event.get("content", {}).get("parts")
     )
     tasks_collection = db.collection("users").document(user_id).collection("tasks")
-    event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
-    event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
     
     if prereq_response_text:
         due_date = event_start_date - datetime.timedelta(days=1)
@@ -200,4 +210,3 @@ Do not provide any introductory text, explanation, or ask for clarification.
             "taskType": "post-lecture"
         })
         print(f"Successfully created a new post-lecture {generation_type} task for user {user_id}.")
-
