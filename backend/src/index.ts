@@ -53,29 +53,71 @@ app.get('/courses', authenticate, async (req, res) => {
         if (snapshot.empty) return res.status(200).send([]);
         const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.status(200).send(courses);
-    } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
+    } catch (error) { 
+        console.error("Error fetching courses:", error);
+        res.status(500).send({ message: 'Internal Server Error' }); 
+    }
 });
+
 app.post('/courses', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
-        const { name, code, generationType } = req.body;
+        const { name, code, generationType, schedule } = req.body;
+        
         if (!name) return res.status(400).send({ message: 'Course name is required.' });
+
+        if (schedule && !Array.isArray(schedule)) {
+            return res.status(400).send({ message: 'Schedule must be an array.' });
+        }
+
         const db = getFirestore();
-        const docRef = await db.collection('users').doc(user.uid).collection('courses').add({ name, code: code || '', generationType: generationType || 'flashcards' });
+        const newCourse = {
+            name,
+            code: code || '',
+            generationType: generationType || 'flashcards',
+            schedule: schedule || [] // Save schedule, default to empty array
+        };
+        
+        const docRef = await db.collection('users').doc(user.uid).collection('courses').add(newCourse);
         res.status(201).send({ message: 'Course added successfully', id: docRef.id });
-    } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
+    } catch (error) { 
+        console.error("Error creating course:", error);
+        res.status(500).send({ message: 'Internal Server Error' }); 
+    }
 });
+
 app.put('/courses/:courseId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const { courseId } = req.params;
-        const { generationType } = req.body;
-        if (!generationType) return res.status(400).send({ message: 'Missing "generationType" field.' });
+        const { name, code, generationType, schedule } = req.body;
+
         const db = getFirestore();
-        await db.collection('users').doc(user.uid).collection('courses').doc(courseId).update({ generationType });
-        res.status(200).send({ message: 'Course preference updated.' });
-    } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
+        const courseRef = db.collection('users').doc(user.uid).collection('courses').doc(courseId);
+
+        const updatePayload: { [key: string]: any } = {};
+        if (name !== undefined) updatePayload.name = name;
+        if (code !== undefined) updatePayload.code = code;
+        if (generationType !== undefined) updatePayload.generationType = generationType;
+        if (schedule !== undefined) {
+             if (!Array.isArray(schedule)) {
+                return res.status(400).send({ message: 'Schedule must be an array.' });
+            }
+            updatePayload.schedule = schedule;
+        }
+
+        if (Object.keys(updatePayload).length === 0) {
+            return res.status(400).send({ message: 'No fields to update provided.' });
+        }
+
+        await courseRef.update(updatePayload);
+        res.status(200).send({ message: 'Course updated successfully.' });
+    } catch (error) { 
+        console.error("Error updating course:", error);
+        res.status(500).send({ message: 'Internal Server Error' }); 
+    }
 });
+
 app.delete('/courses/:courseId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -83,7 +125,10 @@ app.delete('/courses/:courseId', authenticate, async (req, res) => {
         const db = getFirestore();
         await db.collection('users').doc(user.uid).collection('courses').doc(courseId).delete();
         res.status(200).send({ message: 'Course deleted successfully' });
-    } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
+    } catch (error) { 
+        console.error("Error deleting course:", error);
+        res.status(500).send({ message: 'Internal Server Error' }); 
+    }
 });
 
 
@@ -107,7 +152,7 @@ app.get('/tasks', authenticate, async (req, res) => {
         dueDate: data.dueDate.toDate().toISOString(),
         relatedCalendarEventId: data.relatedCalendarEventId,
         quizResult: data.quizResult || null,
-        taskType: data.taskType || 'default' // --- ADDED THIS LINE ---
+        taskType: data.taskType || 'default'
       };
     });
     res.status(200).send(tasks);
@@ -125,6 +170,7 @@ app.put('/tasks/:taskId', authenticate, async (req, res) => {
     res.status(200).send({ message: 'Task updated successfully' });
   } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
+
 app.delete('/tasks/:taskId', authenticate, async (req, res) => {
   try {
     const { user } = req as any;
@@ -134,6 +180,7 @@ app.delete('/tasks/:taskId', authenticate, async (req, res) => {
     res.status(200).send({ message: 'Task deleted successfully' });
   } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
+
 app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -162,6 +209,7 @@ app.post('/events', authenticate, async (req, res) => {
         res.status(201).send({ message: 'Event created', eventId: docRef.id });
     } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
+
 app.put('/events/:eventId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
@@ -173,6 +221,7 @@ app.put('/events/:eventId', authenticate, async (req, res) => {
         res.status(200).send({ message: 'Event updated' });
     } catch (error) { res.status(500).send({ message: 'Internal Server Error' }); }
 });
+
 app.delete('/events/:eventId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
