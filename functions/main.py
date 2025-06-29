@@ -23,11 +23,14 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 
 # --- Helper function to delete existing tasks ---
-async def delete_tasks_for_event(db, user_id, event_id):
+# UPDATED: This function is now synchronous to match the Firestore client.
+def delete_tasks_for_event(db, user_id, event_id):
     """Deletes all tasks associated with a given calendar event ID."""
     print(f"Checking for and deleting existing tasks for Event ID: {event_id}")
     tasks_ref = db.collection("users").document(user_id).collection("tasks")
-    tasks_snapshot = await tasks_ref.where("relatedCalendarEventId", "==", event_id).get()
+    
+    # UPDATED: Synchronous .get() call
+    tasks_snapshot = tasks_ref.where("relatedCalendarEventId", "==", event_id).get()
     
     if not tasks_snapshot:
         print(f"No existing tasks found for Event ID: {event_id}")
@@ -37,7 +40,9 @@ async def delete_tasks_for_event(db, user_id, event_id):
     batch = db.batch()
     for doc in tasks_snapshot:
         batch.delete(doc.reference)
-    await batch.commit()
+    
+    # UPDATED: Synchronous .commit() call
+    batch.commit()
     print(f"Successfully deleted {len(tasks_snapshot)} tasks for Event ID: {event_id}")
 
 
@@ -64,6 +69,7 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
     
+    # Using the standard synchronous Firestore client
     db = firestore.client()
 
     # --- Handle Event Deletion ---
@@ -72,12 +78,12 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
 
     if not firestore_payload.value.fields:
         print(f"Event {event_id} was deleted. Deleting associated tasks.")
-        asyncio.run(delete_tasks_for_event(db, user_id, event_id))
+        # UPDATED: Direct synchronous call
+        delete_tasks_for_event(db, user_id, event_id)
         return
 
     # --- Handle Event Creation or Update ---
     
-    # ADDED: Check if the event is within the next two weeks before proceeding
     event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
     event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
     
@@ -86,12 +92,12 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
 
     if not (now <= event_start_date <= two_weeks_from_now):
         print(f"Event {event_id} is not within the next two weeks. Deleting any stale tasks and skipping generation.")
-        asyncio.run(delete_tasks_for_event(db, user_id, event_id))
+        delete_tasks_for_event(db, user_id, event_id)
         return
 
-    # First, delete any old tasks to ensure a clean slate
     print(f"Event {event_id} is upcoming. Syncing tasks...")
-    asyncio.run(delete_tasks_for_event(db, user_id, event_id))
+    # UPDATED: Direct synchronous call
+    delete_tasks_for_event(db, user_id, event_id)
 
     # Now, proceed with generating new tasks using the latest data
     event_title = firestore_payload.value.fields["title"].string_value
@@ -118,7 +124,7 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
     course_name, course_code, generation_type = "", "", "flashcards"
     if course_id:
         course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
-        course_doc = course_ref.get()
+        course_doc = course_ref.get() # This is already synchronous
         if course_doc.exists:
             course_data = course_doc.to_dict()
             if course_data:
