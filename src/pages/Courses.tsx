@@ -1,8 +1,7 @@
-// src/pages/Courses.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+// --- TYPE INTERFACES ---
 interface Schedule {
   day: string;
   startTime: string;
@@ -15,6 +14,9 @@ interface Course {
   code?: string;
   generationType: 'flashcards' | 'quiz';
   schedule?: Schedule[];
+  // ADDED: Term date properties
+  termStartDate?: string; 
+  termEndDate?: string;
 }
 
 
@@ -25,6 +27,14 @@ const CalendarIcon = () => <svg width="16" height="16" fill="currentColor" viewB
 const ClockIcon = () => <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>;
 const EditIcon = () => <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/></svg>;
 
+// Helper function to get current year-month string, e.g., "2025-09"
+const getCurrentYearMonth = (addMonths = 0) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + addMonths);
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `${year}-${month}`;
+};
 
 const Courses = () => {
   // --- State Management ---
@@ -33,6 +43,9 @@ const Courses = () => {
   const [newCourseCode, setNewCourseCode] = useState('');
   const [newCourseType, setNewCourseType] = useState<'flashcards' | 'quiz'>('flashcards');
   const [newSchedule, setNewSchedule] = useState<Array<Schedule & { id: number }>>([]);
+  // ADDED: State for new course term dates
+  const [newTermStartDate, setNewTermStartDate] = useState(getCurrentYearMonth(0));
+  const [newTermEndDate, setNewTermEndDate] = useState(getCurrentYearMonth(4));
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,8 +71,11 @@ const Courses = () => {
   };
 
   useEffect(() => {
-    if (currentUser) fetchCourses();
-    else setLoading(false);
+    if (currentUser) {
+      fetchCourses();
+    } else {
+      setLoading(false);
+    }
   }, [currentUser]);
 
   const handleAddCourse = async (e: React.FormEvent) => {
@@ -73,21 +89,25 @@ const Courses = () => {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/courses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        // UPDATED: Added term dates to the request body
         body: JSON.stringify({ 
           name: newCourseName, 
           code: newCourseCode, 
           generationType: newCourseType,
-          schedule: scheduleToSave 
+          schedule: scheduleToSave,
+          termStartDate: newTermStartDate,
+          termEndDate: newTermEndDate
         }),
       });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to add course.');
       
       setNewCourseName('');
       setNewCourseCode('');
-      setNewCourseType('flashcards');
       setNewSchedule([]);
       await fetchCourses();
-    } catch (err) { alert(err instanceof Error ? err.message : 'An unknown error occurred.'); }
+    } catch (err) { 
+      alert(err instanceof Error ? err.message : 'An unknown error occurred.'); 
+    }
   };
 
   const handleTypeChange = async (courseId: string, newType: 'flashcards' | 'quiz') => {
@@ -99,7 +119,6 @@ const Courses = () => {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ generationType: newType })
         });
-        // Optimistically update the UI
         setCourses(prev => prev.map(c => c.id === courseId ? {...c, generationType: newType} : c));
     } catch (err) {
         alert('Failed to update preference.');
@@ -119,7 +138,9 @@ const Courses = () => {
 
       setEditingCourseId(null);
       await fetchCourses();
-    } catch (err) { alert(err instanceof Error ? err.message : 'An unknown error occurred.'); }
+    } catch (err) { 
+      alert(err instanceof Error ? err.message : 'An unknown error occurred.'); 
+    }
   };
 
   const handleDeleteCourse = async (courseId: string) => {
@@ -131,7 +152,9 @@ const Courses = () => {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       await fetchCourses();
-    } catch (err) { alert('Failed to delete course.'); }
+    } catch (err) { 
+      alert('Failed to delete course.'); 
+    }
   };
 
   // --- Styles ---
@@ -149,13 +172,9 @@ const Courses = () => {
     button: { padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#4F46E5', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '44px', alignSelf: 'flex-end' },
     courseList: { listStyle: 'none', padding: 0 },
     courseItem: { padding: '20px 0', borderBottom: '1px solid #F3F4F6' },
-    courseItemHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
-    actionButton: { backgroundColor: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' },
     scheduleSection: { borderTop: '1px solid #E5E7EB', paddingTop: '20px', marginTop: '20px' },
     scheduleTitle: { display: 'flex', alignItems: 'center', gap: '8px', color: '#374151', fontSize: '1rem', fontWeight: 600 },
     addSlotButton: { background: 'none', border: '1px dashed #D1D5DB', color: '#4B5563', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px' },
-    scheduleDisplayList: { listStyle: 'none', padding: 0, marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px' },
-    scheduleDisplayItem: { display: 'flex', alignItems: 'center', gap: '10px', color: '#4B5563', fontSize: '0.9rem' },
   };
 
   if (loading) return <div>Loading...</div>;
@@ -166,7 +185,6 @@ const Courses = () => {
       <h1 style={styles.title}>Manage Courses</h1>
       <p style={styles.subTitle}>Add your courses and their weekly schedules to automatically populate your calendar.</p>
 
-      {/* Add New Course Form */}
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Add a New Course</h2>
         <form onSubmit={handleAddCourse} style={styles.form}>
@@ -175,18 +193,25 @@ const Courses = () => {
                 <div style={styles.inputGroup}><label htmlFor="courseCode" style={styles.label}>Course Code</label><input id="courseCode" type="text" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} style={styles.input} placeholder="e.g., PSYC 101"/></div>
                 <div style={styles.inputGroup}><label htmlFor="generationType" style={styles.label}>Review Style</label><select id="generationType" value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} style={{...styles.input, height: '44px'}}><option value="flashcards">Flashcards</option><option value="quiz">Quiz</option></select></div>
             </div>
+            {/* ADDED: Term Information Section */}
             <div style={styles.scheduleSection}>
-              <h3 style={styles.scheduleTitle}><CalendarIcon /> Weekly Schedule</h3>
+                <h3 style={styles.scheduleTitle}><CalendarIcon/> Term Information</h3>
+                <div style={{...styles.formGrid, gridTemplateColumns: '1fr 1fr', marginTop: '15px'}}>
+                    <div style={styles.inputGroup}><label htmlFor="termStart" style={styles.label}>Start Date</label><input id="termStart" type="month" value={newTermStartDate} onChange={e => setNewTermStartDate(e.target.value)} style={styles.input} /></div>
+                    <div style={styles.inputGroup}><label htmlFor="termEnd" style={styles.label}>End Date</label><input id="termEnd" type="month" value={newTermEndDate} onChange={e => setNewTermEndDate(e.target.value)} style={styles.input} /></div>
+                </div>
+            </div>
+            <div style={styles.scheduleSection}>
+              <h3 style={styles.scheduleTitle}><ClockIcon /> Weekly Schedule</h3>
               <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px'}}>
                 {newSchedule.map((slot) => (<ScheduleInput key={slot.id} slot={slot} setSchedule={setNewSchedule} />))}
               </div>
               <button type="button" onClick={() => setNewSchedule(s => [...s, {id: Date.now(), day: 'Monday', startTime: '09:00', endTime: '10:00'}])} style={styles.addSlotButton}><PlusIcon /> Add Time Slot</button>
             </div>
-            <div style={{display: 'flex', justifyContent: 'flex-end'}}><button type="submit" style={styles.button}>Add Course</button></div>
+            <div style={{display: 'flex', justifyContent: 'flex-end', marginTop: '10px'}}><button type="submit" style={styles.button}>Add Course</button></div>
         </form>
       </div>
 
-      {/* Existing Courses List */}
       <div style={styles.section}>
         <h2 style={styles.sectionTitle}>Your Courses</h2>
         {courses.length === 0 ? <p>No courses added yet.</p> : (
@@ -212,18 +237,21 @@ const Courses = () => {
 const CourseDisplay = ({ course, onEdit, onDelete, onTypeChange }: { course: Course; onEdit: () => void; onDelete: (id: string) => void; onTypeChange: (id: string, type: 'flashcards' | 'quiz') => void; }) => {
     const formatTime = (timeString?: string) => {
         if (!timeString) return '';
-        const [hour, minute] = timeString.split(':');
-        const hourNum = parseInt(hour, 10);
-        const ampm = hourNum >= 12 ? 'PM' : 'AM';
-        const formattedHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
-        return `${formattedHour}:${minute} ${ampm}`;
+        return new Date(`1970-01-01T${timeString}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     };
+
+    const formatTermDate = (dateString?: string) => {
+        if(!dateString) return '';
+        const [year, month] = dateString.split('-');
+        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric'});
+    }
     
     const styles: { [key: string]: React.CSSProperties } = {
-        courseItemHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' },
+        courseItemHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' },
         courseInfo: { display: 'flex', flexDirection: 'column' },
-        courseActions: { display: 'flex', alignItems: 'center', gap: '10px' },
+        courseActions: { display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 },
         actionButton: { backgroundColor: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' },
+        termInfo: { fontSize: '0.85rem', color: '#6B7280', backgroundColor: '#F3F4F6', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginTop: '4px' },
         input: { border: '1px solid #D1D5DB', borderRadius: '6px', padding: '8px', fontSize: '0.9rem' },
         scheduleDisplayList: { listStyle: 'none', padding: 0, marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px' },
         scheduleDisplayItem: { display: 'flex', alignItems: 'center', gap: '10px', color: '#4B5563', fontSize: '0.9rem' },
@@ -235,6 +263,8 @@ const CourseDisplay = ({ course, onEdit, onDelete, onTypeChange }: { course: Cou
             <div style={styles.courseInfo}>
                 <strong style={{color: '#1F2937', fontSize: '1.1rem'}}>{course.name}</strong>
                 {course.code && <span style={{color: '#6B7280', fontSize: '0.9rem'}}>({course.code})</span>}
+                {/* ADDED: Display for term dates */}
+                {course.termStartDate && <span style={styles.termInfo}>{`${formatTermDate(course.termStartDate)} - ${formatTermDate(course.termEndDate)}`}</span>}
             </div>
             <div style={styles.courseActions}>
                 <select value={course.generationType} onChange={e => onTypeChange(course.id, e.target.value as any)} style={styles.input}>
@@ -267,11 +297,15 @@ const EditCourseForm = ({ course, onSave, onCancel }: { course: Course; onSave: 
     const [code, setCode] = useState(course.code || '');
     const [generationType, setGenerationType] = useState(course.generationType);
     const [schedule, setSchedule] = useState((course.schedule || []).map((s, i) => ({...s, id: i})));
+    // ADDED: State for editing term dates
+    const [termStartDate, setTermStartDate] = useState(course.termStartDate || getCurrentYearMonth(0));
+    const [termEndDate, setTermEndDate] = useState(course.termEndDate || getCurrentYearMonth(4));
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
         const scheduleToSave = schedule.map(({ id, ...rest }) => rest);
-        onSave(course.id, { name, code, generationType, schedule: scheduleToSave });
+        // UPDATED: Pass term dates on save
+        onSave(course.id, { name, code, generationType, schedule: scheduleToSave, termStartDate, termEndDate });
     };
 
     const styles: { [key: string]: React.CSSProperties } = {
@@ -296,7 +330,14 @@ const EditCourseForm = ({ course, onSave, onCancel }: { course: Course; onSave: 
                 <div style={styles.inputGroup}><label style={styles.label}>Review Style</label><select value={generationType} onChange={e => setGenerationType(e.target.value as any)} style={{...styles.input, height: '44px'}}><option value="flashcards">Flashcards</option><option value="quiz">Quiz</option></select></div>
             </div>
              <div style={styles.scheduleSection}>
-                <h3 style={styles.scheduleTitle}><CalendarIcon /> Weekly Schedule</h3>
+                <h3 style={styles.scheduleTitle}><CalendarIcon/> Term Information</h3>
+                <div style={{...styles.formGrid, gridTemplateColumns: '1fr 1fr', marginTop: '15px'}}>
+                    <div style={styles.inputGroup}><label htmlFor="termStartEdit" style={styles.label}>Start Date</label><input id="termStartEdit" type="month" value={termStartDate} onChange={e => setTermStartDate(e.target.value)} style={styles.input} /></div>
+                    <div style={styles.inputGroup}><label htmlFor="termEndEdit" style={styles.label}>End Date</label><input id="termEndEdit" type="month" value={termEndDate} onChange={e => setTermEndDate(e.target.value)} style={styles.input} /></div>
+                </div>
+            </div>
+             <div style={styles.scheduleSection}>
+                <h3 style={styles.scheduleTitle}><ClockIcon /> Weekly Schedule</h3>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px'}}>
                     {schedule.map((slot) => (<ScheduleInput key={slot.id} slot={slot} setSchedule={setSchedule} />))}
                 </div>

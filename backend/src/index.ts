@@ -1,7 +1,6 @@
 // backend/src/index.ts
 import express from 'express';
 import cors from 'cors';
-
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
@@ -49,7 +48,7 @@ app.get('/courses', authenticate, async (req, res) => {
         const { user } = req as any;
         const db = getFirestore();
         const coursesRef = db.collection('users').doc(user.uid).collection('courses');
-        const snapshot = await coursesRef.orderBy('name').get();
+        const snapshot = await coursesRef.orderBy('termStartDate', 'desc').orderBy('name', 'asc').get();
         if (snapshot.empty) return res.status(200).send([]);
         const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.status(200).send(courses);
@@ -62,20 +61,19 @@ app.get('/courses', authenticate, async (req, res) => {
 app.post('/courses', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
-        const { name, code, generationType, schedule } = req.body;
+        const { name, code, generationType, schedule, termStartDate, termEndDate } = req.body;
         
         if (!name) return res.status(400).send({ message: 'Course name is required.' });
-
-        if (schedule && !Array.isArray(schedule)) {
-            return res.status(400).send({ message: 'Schedule must be an array.' });
-        }
+        if (schedule && !Array.isArray(schedule)) return res.status(400).send({ message: 'Schedule must be an array.' });
 
         const db = getFirestore();
         const newCourse = {
             name,
             code: code || '',
             generationType: generationType || 'flashcards',
-            schedule: schedule || [] // Save schedule, default to empty array
+            schedule: schedule || [],
+            termStartDate: termStartDate || null,
+            termEndDate: termEndDate || null
         };
         
         const docRef = await db.collection('users').doc(user.uid).collection('courses').add(newCourse);
@@ -90,7 +88,7 @@ app.put('/courses/:courseId', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const { courseId } = req.params;
-        const { name, code, generationType, schedule } = req.body;
+        const { name, code, generationType, schedule, termStartDate, termEndDate } = req.body;
 
         const db = getFirestore();
         const courseRef = db.collection('users').doc(user.uid).collection('courses').doc(courseId);
@@ -100,11 +98,11 @@ app.put('/courses/:courseId', authenticate, async (req, res) => {
         if (code !== undefined) updatePayload.code = code;
         if (generationType !== undefined) updatePayload.generationType = generationType;
         if (schedule !== undefined) {
-             if (!Array.isArray(schedule)) {
-                return res.status(400).send({ message: 'Schedule must be an array.' });
-            }
+             if (!Array.isArray(schedule)) return res.status(400).send({ message: 'Schedule must be an array.' });
             updatePayload.schedule = schedule;
         }
+        if (termStartDate !== undefined) updatePayload.termStartDate = termStartDate;
+        if (termEndDate !== undefined) updatePayload.termEndDate = termEndDate;
 
         if (Object.keys(updatePayload).length === 0) {
             return res.status(400).send({ message: 'No fields to update provided.' });
