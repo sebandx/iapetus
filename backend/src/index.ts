@@ -1,4 +1,3 @@
-// backend/src/index.ts
 import express from 'express';
 import cors from 'cors';
 import { initializeApp } from 'firebase-admin/app';
@@ -28,6 +27,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// --- Authentication Middleware ---
 const authenticate = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const { authorization } = req.headers;
   if (!authorization || !authorization.startsWith('Bearer ')) {
@@ -43,14 +43,31 @@ const authenticate = async (req: express.Request, res: express.Response, next: e
   }
 };
 
+// --- Course Endpoints ---
+
 app.get('/courses', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
         const db = getFirestore();
         const coursesRef = db.collection('users').doc(user.uid).collection('courses');
-        const snapshot = await coursesRef.orderBy('termStartDate', 'desc').orderBy('name', 'asc').get();
+        
+        // UPDATED: Query only by the primary field to avoid composite index errors.
+        // The secondary sort will be handled in the application code.
+        const snapshot = await coursesRef.orderBy('termStartDate', 'desc').get();
+        
         if (snapshot.empty) return res.status(200).send([]);
-        const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as object }));
+        
+        // Perform the secondary sort by name in memory
+        courses.sort((a, b) => {
+            const nameA = (a as any).name?.toUpperCase() || '';
+            const nameB = (b as any).name?.toUpperCase() || '';
+            if (nameA < nameB) return -1;
+            if (nameA > nameB) return 1;
+            return 0;
+        });
+        
         res.status(200).send(courses);
     } catch (error) { 
         console.error("Error fetching courses:", error);
@@ -130,7 +147,7 @@ app.delete('/courses/:courseId', authenticate, async (req, res) => {
 });
 
 
-// --- Task Endpoints ---
+// --- Task Endpoints (Unchanged) ---
 app.get('/tasks', authenticate, async (req, res) => {
   try {
     const { user } = req as any;
@@ -197,6 +214,7 @@ app.post('/tasks/:taskId/quiz', authenticate, async (req, res) => {
 });
 
 
+// --- Event Endpoints (Unchanged) ---
 app.post('/events', authenticate, async (req, res) => {
     try {
         const { user } = req as any;
