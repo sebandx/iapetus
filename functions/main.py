@@ -22,13 +22,32 @@ AGENT_ENGINE_ID = os.environ.get("AGENT_ENGINE_ID")
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 
+# --- Helper function to delete existing tasks ---
+async def delete_tasks_for_event(db, user_id, event_id):
+    """Deletes all tasks associated with a given calendar event ID."""
+    print(f"Checking for and deleting existing tasks for Event ID: {event_id}")
+    tasks_ref = db.collection("users").document(user_id).collection("tasks")
+    tasks_snapshot = await tasks_ref.where("relatedCalendarEventId", "==", event_id).get()
+    
+    if not tasks_snapshot:
+        print(f"No existing tasks found for Event ID: {event_id}")
+        return
+
+    # Use a batch to delete all found tasks efficiently
+    batch = db.batch()
+    for doc in tasks_snapshot:
+        batch.delete(doc.reference)
+    await batch.commit()
+    print(f"Successfully deleted {len(tasks_snapshot)} tasks for Event ID: {event_id}")
+
+
 @functions_framework.cloud_event
-def on_calendar_event_create(cloud_event: CloudEvent) -> None:
+def on_calendar_event_written(cloud_event: CloudEvent) -> None:
     """
-    A Cloud Function that triggers when a new calendar event is created.
-    It queries a deployed Agent Engine and creates a to-do task in Firestore.
+    A Cloud Function that triggers when a calendar event is created, updated, or deleted.
+    It manages the lifecycle of associated review tasks.
     """
-    print("Function triggered by a new calendar event.")
+    print("Function triggered by a calendar event write.")
     
     try:
         document_path = cloud_event["document"]
@@ -44,15 +63,30 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
         return
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
+    
+    db = firestore.client()
 
+    # --- Handle Event Deletion ---
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
 
+    # If the 'value' field is missing, the document was deleted.
+    if not firestore_payload.value.fields:
+        print(f"Event {event_id} was deleted. Deleting associated tasks.")
+        asyncio.run(delete_tasks_for_event(db, user_id, event_id))
+        return
+
+    # --- Handle Event Creation or Update ---
+    # First, delete any old tasks to ensure a clean slate
+    print(f"Event {event_id} was created or updated. Syncing tasks...")
+    asyncio.run(delete_tasks_for_event(db, user_id, event_id))
+
+    # Now, proceed with generating new tasks using the latest data
     event_title = firestore_payload.value.fields["title"].string_value
     course_id = firestore_payload.value.fields["courseId"].string_value
 
     if not event_title:
-        print("Event created without a title. Exiting function.")
+        print("Event data has no title. Exiting task generation.")
         return
 
     if not AGENT_ENGINE_ID:
@@ -69,7 +103,6 @@ def on_calendar_event_create(cloud_event: CloudEvent) -> None:
     agent = agent_engines.get(AGENT_ENGINE_ID)
     print(f"Querying Agent Engine: '{agent}'")
 
-    db = firestore.client()
     course_name, course_code, generation_type = "", "", "flashcards"
     if course_id:
         course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
@@ -167,3 +200,4 @@ Do not provide any introductory text, explanation, or ask for clarification.
             "taskType": "post-lecture"
         })
         print(f"Successfully created a new post-lecture {generation_type} task for user {user_id}.")
+
