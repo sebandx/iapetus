@@ -42,7 +42,7 @@ async def delete_tasks_for_event(db, user_id, event_id):
 
 
 @functions_framework.cloud_event
-def on_calendar_event_written(cloud_event: CloudEvent) -> None:
+def process_calendar_event(cloud_event: CloudEvent) -> None:
     """
     A Cloud Function that triggers when a calendar event is created, updated, or deleted.
     It manages the lifecycle of associated review tasks.
