@@ -90,6 +90,22 @@ const Courses = () => {
     } catch (err) { alert(err instanceof Error ? err.message : 'An unknown error occurred.'); }
   };
 
+  const handleTypeChange = async (courseId: string, newType: 'flashcards' | 'quiz') => {
+    if (!currentUser) return;
+    try {
+        const token = await currentUser.getIdToken();
+        await fetch(`${import.meta.env.VITE_API_URL}/courses/${courseId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ generationType: newType })
+        });
+        // Optimistically update the UI
+        setCourses(prev => prev.map(c => c.id === courseId ? {...c, generationType: newType} : c));
+    } catch (err) {
+        alert('Failed to update preference.');
+    }
+  };  
+
   const handleUpdateCourse = async (courseId: string, updatedData: Omit<Course, 'id'>) => {
     if (!currentUser) return;
     try {
