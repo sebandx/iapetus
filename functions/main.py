@@ -186,20 +186,26 @@ Do not include any introductory text, explanations, or summaries outside of the 
     print(f"Querying for post-lecture with prompt: '{post_lecture_prompt}'")
 
     prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
-    print(f"Query response prereq_response_stream stream: ''{prereq_response_stream}")    
-    prereq_response_text = "".join(
-        event["content"]["parts"][0].get("text", "")
-        for event in prereq_response_stream
-        if "content" in event and event.get("content", {}).get("parts")
-    )
+    prereq_response_parts = []
+    print("--- Inspecting Prerequisite Stream Chunks ---")
+    for chunk in prereq_response_stream:
+        # This will print each piece of data as it arrives from the agent
+        print(f"CHUNK (prereq): {json.dumps(chunk, indent=2)}")
+        if "content" in chunk and "parts" in chunk["content"]:
+            prereq_response_parts.append(chunk["content"]["parts"][0].get("text", ""))
+    prereq_response_text = "".join(prereq_response_parts)
+    print("--- End of Prerequisite Stream ---")    
 
     post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=session.id, user_id=user_id)
-    print(f"Query response post_lecture_response_stream stream: ''{post_lecture_response_stream}")
-    post_lecture_response_text = "".join(
-        event["content"]["parts"][0].get("text", "")
-        for event in post_lecture_response_stream
-        if "content" in event and event.get("content", {}).get("parts")
-    )
+    post_lecture_response_parts = []
+    print("--- Inspecting Post-Lecture Stream Chunks ---")
+    for chunk in post_lecture_response_stream:
+        # This will print each piece of data as it arrives from the agent
+        print(f"CHUNK (post-lecture): {json.dumps(chunk, indent=2)}")
+        if "content" in chunk and "parts" in chunk["content"]:
+            post_lecture_response_parts.append(chunk["content"]["parts"][0].get("text", ""))
+    post_lecture_response_text = "".join(post_lecture_response_parts)
+    print("--- End of Post-Lecture Stream ---")
     tasks_collection = db.collection("users").document(user_id).collection("tasks")
     
     if prereq_response_text:
