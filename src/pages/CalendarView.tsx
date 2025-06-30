@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import { type EventClickArg } from '@fullcalendar/core';
+import { type EventClickArg, type EventContentArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -24,13 +24,16 @@ interface CalendarEvent {
   end: Date;
   extendedProps: {
       courseId?: string;
+      // ADDED: Add optional course details for rendering
+      courseName?: string;
+      courseCode?: string;
   }
 }
 
 const CalendarView = () => {
   const { currentUser, loading: authLoading } = useAuth();
-  const [rawEvents, setRawEvents] = useState<CalendarEvent[]>([]); // Renamed from 'events'
-  const [processedEvents, setProcessedEvents] = useState<CalendarEvent[]>([]); // ADDED: For displaying in calendar
+  const [rawEvents, setRawEvents] = useState<CalendarEvent[]>([]);
+  const [processedEvents, setProcessedEvents] = useState<CalendarEvent[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -94,30 +97,43 @@ const CalendarView = () => {
   }, [currentUser]);
   
   useEffect(() => {
-    // Only process if we have both events and courses loaded
     if (rawEvents.length > 0 && courses.length > 0) {
-      // Create a map for efficient lookups
       const courseMap = new Map(courses.map(course => [course.id, course]));
 
       const newProcessedEvents = rawEvents.map(event => {
         const course = event.extendedProps.courseId ? courseMap.get(event.extendedProps.courseId) : null;
         
-        // If a course is found, prepend its code/name to the event title
-        const newTitle = course 
-            ? `${course.code || course.name}: ${event.title}` 
-            : event.title;
-        
         return {
           ...event,
-          title: newTitle,
+          // Add course info to extendedProps for the custom render function to use
+          extendedProps: {
+            ...event.extendedProps,
+            courseName: course?.name,
+            courseCode: course?.code,
+          },
         };
       });
       setProcessedEvents(newProcessedEvents);
     } else {
-      // If courses aren't loaded yet, just display the raw events
       setProcessedEvents(rawEvents);
     }
-  }, [rawEvents, courses]); // This effect re-runs when either events or courses change
+  }, [rawEvents, courses]);
+
+  const renderEventContent = (eventInfo: EventContentArg) => {
+    const { event } = eventInfo;
+    const { courseName, courseCode } = event.extendedProps;
+    
+    return (
+      <div style={{ overflow: 'hidden', fontSize: '0.85em', lineHeight: 1.3 }}>
+        <div style={{ fontWeight: 'bold' }}>{event.title}</div>
+        {courseName && (
+          <div style={{ fontSize: '0.9em', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {courseCode + ":" + courseName}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
@@ -126,7 +142,6 @@ const CalendarView = () => {
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
-    // Find the original raw event to pass to the modal, so it doesn't have the modified title
     const originalEvent = rawEvents.find(e => e.id === clickInfo.event.id);
     if (originalEvent) {
         setSelectedEvent(originalEvent);
@@ -199,6 +214,7 @@ const CalendarView = () => {
         initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
         nowIndicator={true}
         events={processedEvents}
+        eventContent={renderEventContent}
         dateClick={handleDateClick}
         eventClick={handleEventClick}
         height="auto"

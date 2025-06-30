@@ -11,7 +11,7 @@ interface Schedule {
 interface Course {
   id: string;
   name:string;
-  code?: string;
+  code: string;
   generationType: 'flashcards' | 'quiz';
   schedule?: Schedule[];
   termStartDate?: string; 
@@ -79,7 +79,10 @@ const Courses = () => {
 
   const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCourseName.trim() || !currentUser) return;
+    if (!newCourseName.trim() || !newCourseCode.trim() || !currentUser) {
+        alert("Please fill out both Course Name and Course Code.");
+        return;
+    }
 
     const scheduleToSave = newSchedule.map(({ id, ...rest }) => rest);
 
@@ -189,7 +192,7 @@ const Courses = () => {
         <form onSubmit={handleAddCourse} style={styles.form}>
             <div style={styles.formGrid}>
                 <div style={styles.inputGroup}><label htmlFor="courseName" style={styles.label}>Course Name *</label><input id="courseName" type="text" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} required style={styles.input} placeholder="e.g., Intro to Psychology"/></div>
-                <div style={styles.inputGroup}><label htmlFor="courseCode" style={styles.label}>Course Code</label><input id="courseCode" type="text" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} style={styles.input} placeholder="e.g., PSYC 101"/></div>
+                <div style={styles.inputGroup}><label htmlFor="courseCode" style={styles.label}>Course Code *</label><input id="courseCode" type="text" value={newCourseCode} onChange={e => setNewCourseCode(e.target.value)} required style={styles.input} placeholder="e.g., PSYC 101"/></div>
                 <div style={styles.inputGroup}><label htmlFor="generationType" style={styles.label}>Review Style</label><select id="generationType" value={newCourseType} onChange={e => setNewCourseType(e.target.value as any)} style={{...styles.input, height: '44px'}}><option value="flashcards">Flashcards</option><option value="quiz">Quiz</option></select></div>
             </div>
             <div style={styles.scheduleSection}>
@@ -260,7 +263,7 @@ const CourseDisplay = ({ course, onEdit, onDelete, onTypeChange }: { course: Cou
         <div style={styles.courseItemHeader}>
             <div style={styles.courseInfo}>
                 <strong style={{color: '#1F2937', fontSize: '1.1rem'}}>{course.name}</strong>
-                {course.code && <span style={{color: '#6B7280', fontSize: '0.9rem'}}>({course.code})</span>}
+                <span style={{color: '#6B7280', fontSize: '0.9rem'}}>({course.code})</span>
                 {course.termStartDate && <span style={styles.termInfo}>{`${formatTermDate(course.termStartDate)} - ${formatTermDate(course.termEndDate)}`}</span>}
             </div>
             <div style={styles.courseActions}>
@@ -291,7 +294,7 @@ const CourseDisplay = ({ course, onEdit, onDelete, onTypeChange }: { course: Cou
 
 const EditCourseForm = ({ course, onSave, onCancel }: { course: Course; onSave: (id: string, data: Omit<Course, 'id'>) => void; onCancel: () => void; }) => {
     const [name, setName] = useState(course.name);
-    const [code, setCode] = useState(course.code || '');
+    const [code, setCode] = useState(course.code);
     const [generationType, setGenerationType] = useState(course.generationType);
     const [schedule, setSchedule] = useState((course.schedule || []).map((s, i) => ({...s, id: i})));
     const [termStartDate, setTermStartDate] = useState(course.termStartDate || getCurrentYearMonth(0));
@@ -299,6 +302,10 @@ const EditCourseForm = ({ course, onSave, onCancel }: { course: Course; onSave: 
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!name.trim() || !code.trim()) {
+            alert('Course name and code cannot be empty.');
+            return;
+        }
         const scheduleToSave = schedule.map(({ id, ...rest }) => rest);
         onSave(course.id, { name, code, generationType, schedule: scheduleToSave, termStartDate, termEndDate });
     };
@@ -321,7 +328,7 @@ const EditCourseForm = ({ course, onSave, onCancel }: { course: Course; onSave: 
         <form onSubmit={handleSave} style={styles.form}>
             <div style={styles.formGrid}>
                 <div style={styles.inputGroup}><label style={styles.label}>Course Name *</label><input value={name} onChange={e => setName(e.target.value)} required style={styles.input}/></div>
-                <div style={styles.inputGroup}><label style={styles.label}>Course Code</label><input value={code} onChange={e => setCode(e.target.value)} style={styles.input}/></div>
+                <div style={styles.inputGroup}><label style={styles.label}>Course Code *</label><input value={code} onChange={e => setCode(e.target.value)} required style={styles.input}/></div>
                 <div style={styles.inputGroup}><label style={styles.label}>Review Style</label><select value={generationType} onChange={e => setGenerationType(e.target.value as any)} style={{...styles.input, height: '44px'}}><option value="flashcards">Flashcards</option><option value="quiz">Quiz</option></select></div>
             </div>
              <div style={styles.scheduleSection}>
