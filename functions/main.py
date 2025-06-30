@@ -148,14 +148,14 @@ Your task is to act as a prerequisite knowledge '{generation_type}' generator fo
 
 Follow these steps carefully:
 
-1.  **Analyze the Main Topic:** First, you must understand the core concepts covered in the main topic: '{event_title}'.
-    * If the topic title is a generic reference (e.g., "Lecture 1", "Chapter 5", "Week 3"), you MUST first find the document with that title in the provided course material to determine the specific subjects discussed within it.
-    * If the topic title is a specific concept (e.g., "Abstract Function", "Limits and Continuity", "Supply and Demand"), use that as the basis for the next step.
+1.  **Analyze the Main Title:** First, you must understand the core concepts covered in the main title: '{event_title}'.
+    * If the main title is a generic reference (e.g., "Lecture 1", "Chapter 5", "Week 3"), you MUST first find the document with file name similar to the main title in the provided course material to determine the specific subjects discussed within it.
+    * If you can not find a document that's similar to the main title, use the main title as the basis for the next step.
 
 2.  **Identify Prerequisite Concepts:** Based on the specific subjects covered in the main topic, identify the foundational concepts, definitions, and skills a student absolutely must know *before* they can successfully begin learning about '{event_title}'. Do NOT list the topics from '{event_title}' itself; focus only on the essential building blocks.
     * *Example:* To learn about "Derivatives", prerequisites might include "Functions" and "Limits". To learn about "Linked Lists", prerequisites might include "Pointers" and "Dynamic Memory Allocation".
 
-3.  **Generate Quiz Questions:** Using ONLY the provided course material as your knowledge base, generate between 10 and 20 multiple-choice questions that test the prerequisite concepts you identified. The goal is to create a quiz that verifies a student's readiness to start the main lesson. Do NOT ask questions about '{event_title}' itself.
+3.  **Generate Quiz Questions:** Using ONLY the provided course material as your knowledge base, generate between 20 multiple-choice questions that test the prerequisite concepts you identified. The goal is to create a quiz that verifies a student's readiness to start the main lesson. Do NOT ask questions about '{event_title}' itself.
 
 4.  **Format the Output:** You MUST return your response as a single, valid JSON array. Each object in the array must have the following keys:
     - "question": A string containing the question about a prerequisite concept.
@@ -169,11 +169,11 @@ Your task is to act as a post-lecture review '{generation_type}' generator for t
 
 Follow these steps carefully:
 
-1.  **Identify the Core Content:** First, you must determine the specific concepts, definitions, and examples covered in the main topic: '{event_title}'.
-    * If the topic title is a generic reference (e.g., "Lecture 2", "Week 5", "Module B"), you MUST find the document with that exact title in the provided course material to understand the subjects discussed within it.
-    * If the topic title is a specific concept (e.g., "Taylor Polynomials", "Market Segmentation"), use that as the basis for your analysis, focusing only on how it is presented in the provided materials.
+1.  **Identify the Core Content:** First, you must determine the specific concepts, definitions, and examples covered in the main title: '{event_title}'.
+    * If the topic title is a generic reference (e.g., "Lecture 2", "Week 5", "Module B"), you MUST find the document with file name similar to the main title in the provided course material to understand the subjects discussed within it.
+    * If you can not find a document that's similar to the main title, use the main title as the basis for the next step.
 
-2.  **Generate Quiz Questions:** Using ONLY the provided course material as your knowledge base, generate between 10 and 20 multiple-choice questions that test the most important key concepts, definitions, and applications *from within* the topic '{event_title}'. The questions should verify that a student has understood the main points of the lesson.
+2.  **Generate Quiz Questions:** Using ONLY the provided course material as your knowledge base, generate between 20 multiple-choice questions that test the most important key concepts, definitions, and applications *from within* the topic '{event_title}'. The questions should verify that a student has understood the main points of the lesson.
 
 3.  **Format the Output:** You MUST return your response as a single, valid JSON array. Each object in the array must have the following keys:
     - "question": A string containing the question about a key concept from the lecture.
