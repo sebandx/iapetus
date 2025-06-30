@@ -26,10 +26,9 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 # This dictionary contains the routing logic for your agents.
 COURSE_AGENT_MAP = {
-    # "MA135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/6224511246700380160", # Algebra for Honours Mathematics
+    "MA135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/6224511246700380160", # Algebra for Honours Mathematics
     "MA137": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/1230019259946500096", # Calculus 1 for Honours Mathematics
     "CS135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/9165854384582557696",
-    "MA135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/9165854384582557696",
 }
 
 
@@ -143,7 +142,7 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
     course_context = f"in the course '{course_name}, {course_code}'" if course_name else ""
 
     prereq_prompt = f"""
-Your task is to act as a prerequisite knowledge '{generation_type}' generator for the course '{course_name}, {course_code}'.
+Your task is to act as a prerequisite knowledge {generation_type} generator for the course '{course_name}, {course_code}'.
 
 Follow these steps carefully:
 
@@ -164,7 +163,7 @@ Follow these steps carefully:
 Do not include any introductory text, explanations, or summaries outside of the final JSON output.
 """
     post_lecture_prompt = f"""
-Your task is to act as a post-lecture review '{generation_type}' generator for the course '{course_name}, {course_code}'. Your goal is to test a student's understanding of the material that was just covered.
+Your task is to act as a post-lecture review {generation_type} generator for the course '{course_name}, {course_code}'. Your goal is to test a student's understanding of the material that was just covered.
 
 Follow these steps carefully:
 
