@@ -8,6 +8,7 @@ import json
 from google.events.cloud.firestore_v1.types import DocumentEventData
 from google.adk.sessions import VertexAiSessionService
 import asyncio
+import traceback
 
 import vertexai
 from vertexai import agent_engines
@@ -185,27 +186,29 @@ Do not include any introductory text, explanations, or summaries outside of the 
     print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
     print(f"Querying for post-lecture with prompt: '{post_lecture_prompt}'")
 
-    prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
-    prereq_response_parts = []
-    print("--- Inspecting Prerequisite Stream Chunks ---")
-    for chunk in prereq_response_stream:
-        # This will print each piece of data as it arrives from the agent
-        print(f"CHUNK (prereq): {json.dumps(chunk, indent=2)}")
-        if "content" in chunk and "parts" in chunk["content"]:
-            prereq_response_parts.append(chunk["content"]["parts"][0].get("text", ""))
-    prereq_response_text = "".join(prereq_response_parts)
-    print("--- End of Prerequisite Stream ---")    
+    prereq_response_text = ""
+    post_lecture_response_text = ""
+    
+    try:
+        print("--- Querying for prerequisites ---")
+        prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
+        prereq_response_parts = [chunk["content"]["parts"][0].get("text", "") for chunk in prereq_response_stream if "content" in chunk]
+        prereq_response_text = "".join(prereq_response_parts)
+        print(f"Raw prerequisite response text: '{prereq_response_text}'")
+    except Exception as e:
+        print(f"ERROR during prerequisite stream query: {e}")
+        traceback.print_exc()
 
-    post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=session.id, user_id=user_id)
-    post_lecture_response_parts = []
-    print("--- Inspecting Post-Lecture Stream Chunks ---")
-    for chunk in post_lecture_response_stream:
-        # This will print each piece of data as it arrives from the agent
-        print(f"CHUNK (post-lecture): {json.dumps(chunk, indent=2)}")
-        if "content" in chunk and "parts" in chunk["content"]:
-            post_lecture_response_parts.append(chunk["content"]["parts"][0].get("text", ""))
-    post_lecture_response_text = "".join(post_lecture_response_parts)
-    print("--- End of Post-Lecture Stream ---")
+    try:
+        print("--- Querying for post-lecture review ---")
+        post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=session.id, user_id=user_id)
+        post_lecture_response_parts = [chunk["content"]["parts"][0].get("text", "") for chunk in post_lecture_response_stream if "content" in chunk]
+        post_lecture_response_text = "".join(post_lecture_response_parts)
+        print(f"Raw post-lecture response text: '{post_lecture_response_text}'")
+    except Exception as e:
+        print(f"ERROR during post-lecture stream query: {e}")
+        traceback.print_exc()
+
     tasks_collection = db.collection("users").document(user_id).collection("tasks")
     
     if prereq_response_text:
