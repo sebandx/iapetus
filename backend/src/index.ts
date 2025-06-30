@@ -100,7 +100,7 @@ const syncCalendarForCourse = async (db: FirebaseFirestore.Firestore, userId: st
                 }
 
                 const newEvent = {
-                    title: courseData.name,
+                    title: "",
                     startTime: eventStart,
                     endTime: eventEnd,
                     courseId: courseId,

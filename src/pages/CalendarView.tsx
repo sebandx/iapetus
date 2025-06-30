@@ -28,8 +28,9 @@ interface CalendarEvent {
 }
 
 const CalendarView = () => {
-  const { currentUser, loading: authLoading } = useAuth(); // Use auth loading state
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const { currentUser, loading: authLoading } = useAuth();
+  const [rawEvents, setRawEvents] = useState<CalendarEvent[]>([]); // Renamed from 'events'
+  const [processedEvents, setProcessedEvents] = useState<CalendarEvent[]>([]); // ADDED: For displaying in calendar
   const [courses, setCourses] = useState<Course[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -82,7 +83,7 @@ const CalendarView = () => {
           extendedProps: { courseId: data.courseId }
         }
       });
-      setEvents(fetchedEvents);
+      setRawEvents(fetchedEvents);
       setDataLoading(false);
     }, (error) => {
         console.error("Error fetching calendar events:", error);
@@ -91,9 +92,33 @@ const CalendarView = () => {
 
     return () => unsubscribe();
   }, [currentUser]);
+  
+  useEffect(() => {
+    // Only process if we have both events and courses loaded
+    if (rawEvents.length > 0 && courses.length > 0) {
+      // Create a map for efficient lookups
+      const courseMap = new Map(courses.map(course => [course.id, course]));
 
-  // --- THE FIX ---
-  // Restore the logic to these handlers to open the modal.
+      const newProcessedEvents = rawEvents.map(event => {
+        const course = event.extendedProps.courseId ? courseMap.get(event.extendedProps.courseId) : null;
+        
+        // If a course is found, prepend its code/name to the event title
+        const newTitle = course 
+            ? `${course.code || course.name}: ${event.title}` 
+            : event.title;
+        
+        return {
+          ...event,
+          title: newTitle,
+        };
+      });
+      setProcessedEvents(newProcessedEvents);
+    } else {
+      // If courses aren't loaded yet, just display the raw events
+      setProcessedEvents(rawEvents);
+    }
+  }, [rawEvents, courses]); // This effect re-runs when either events or courses change
+
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
     setSelectedEvent(null);
@@ -101,16 +126,12 @@ const CalendarView = () => {
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
-    setSelectedEvent({
-      id: clickInfo.event.id,
-      title: clickInfo.event.title,
-      start: clickInfo.event.start!,
-      end: clickInfo.event.end!,
-      extendedProps: {
-        courseId: clickInfo.event.extendedProps.courseId,
-      },
-    });
-    setIsModalOpen(true);
+    // Find the original raw event to pass to the modal, so it doesn't have the modified title
+    const originalEvent = rawEvents.find(e => e.id === clickInfo.event.id);
+    if (originalEvent) {
+        setSelectedEvent(originalEvent);
+        setIsModalOpen(true);
+    }
   };
 
   const handleModalClose = () => {
@@ -177,7 +198,7 @@ const CalendarView = () => {
         }}
         initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
         nowIndicator={true}
-        events={events}
+        events={processedEvents}
         dateClick={handleDateClick}
         eventClick={handleEventClick}
         height="auto"
