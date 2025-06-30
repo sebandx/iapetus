@@ -128,7 +128,7 @@ const CalendarView = () => {
         <div style={{ fontWeight: 'bold' }}>{event.title}</div>
         {courseName && (
           <div style={{ fontSize: '0.9em', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {courseCode + ":" + courseName}
+            {courseCode + ": " + courseName}
           </div>
         )}
       </div>

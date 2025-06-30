@@ -142,43 +142,44 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
 
     course_context = f"in the course '{course_name}, {course_code}'" if course_name else ""
 
-    if generation_type == 'quiz':
-        prereq_prompt = f"""
-Your task is to act as a quiz generator. Based ONLY on the provided course material, identify the foundational concepts that a student must understand *before* they can begin learning about the main topic: '{event_title}' {course_context}.
+    prereq_prompt = f"""
+Your task is to act as a prerequisite knowledge '{generation_type}' generator for the course '{course_name}, {course_code}'.
 
-Then, based on those prerequisite topics ONLY, generate between 10 and 20 multiple-choice questions. Do NOT ask questions about '{event_title}' itself.
+Follow these steps carefully:
 
-You MUST return your response as a single, valid JSON array where each object has the following keys:
-- "question": A string containing the question about a prerequisite concept.
-- "options": An array of four strings representing the multiple-choice options.
-- "answer": A string containing the exact text of the correct option.
+1.  **Analyze the Main Topic:** First, you must understand the core concepts covered in the main topic: '{event_title}'.
+    * If the topic title is a generic reference (e.g., "Lecture 1", "Chapter 5", "Week 3"), you MUST first find the document with that title in the provided course material to determine the specific subjects discussed within it.
+    * If the topic title is a specific concept (e.g., "Abstract Function", "Limits and Continuity", "Supply and Demand"), use that as the basis for the next step.
+
+2.  **Identify Prerequisite Concepts:** Based on the specific subjects covered in the main topic, identify the foundational concepts, definitions, and skills a student absolutely must know *before* they can successfully begin learning about '{event_title}'. Do NOT list the topics from '{event_title}' itself; focus only on the essential building blocks.
+    * *Example:* To learn about "Derivatives", prerequisites might include "Functions" and "Limits". To learn about "Linked Lists", prerequisites might include "Pointers" and "Dynamic Memory Allocation".
+
+3.  **Generate Quiz Questions:** Using ONLY the provided course material as your knowledge base, generate between 10 and 20 multiple-choice questions that test the prerequisite concepts you identified. The goal is to create a quiz that verifies a student's readiness to start the main lesson. Do NOT ask questions about '{event_title}' itself.
+
+4.  **Format the Output:** You MUST return your response as a single, valid JSON array. Each object in the array must have the following keys:
+    - "question": A string containing the question about a prerequisite concept.
+    - "options": An array of four strings representing the multiple-choice options.
+    - "answer": A string containing the exact text of the correct option.
+
+Do not include any introductory text, explanations, or summaries outside of the final JSON output.
 """
-        post_lecture_prompt = f"""
-Your task is to act as a quiz generator. Based ONLY on the provided course material, generate between 10 and 20 multiple-choice questions that summarize and test the most important key concepts *from within* the topic '{event_title}' {course_context}.
+    post_lecture_prompt = f"""
+Your task is to act as a post-lecture review '{generation_type}' generator for the course '{course_name}, {course_code}'. Your goal is to test a student's understanding of the material that was just covered.
 
-You MUST return your response as a single, valid JSON array where each object has the following keys:
-- "question": A string containing the question about the main topic.
-- "options": An array of four strings representing the multiple-choice options.
-- "answer": A string containing the exact text of the correct option.
-"""
-    else: # Default to flashcards
-        prereq_prompt = f"""
-Your task is to act as a flashcard generator. Based ONLY on the provided course material, identify the foundational concepts that a student must understand *before* they can begin learning about the main topic: '{event_title}' {course_context}.
+Follow these steps carefully:
 
-Then, based on those prerequisite topics ONLY, generate between 10 and 20 flashcards. Do NOT create flashcards about '{event_title}' itself.
+1.  **Identify the Core Content:** First, you must determine the specific concepts, definitions, and examples covered in the main topic: '{event_title}'.
+    * If the topic title is a generic reference (e.g., "Lecture 2", "Week 5", "Module B"), you MUST find the document with that exact title in the provided course material to understand the subjects discussed within it.
+    * If the topic title is a specific concept (e.g., "Taylor Polynomials", "Market Segmentation"), use that as the basis for your analysis, focusing only on how it is presented in the provided materials.
 
-You MUST return your response as a single, valid JSON array where each object has the following keys:
-- "question": A string containing the question or term for the flashcard.
-- "answer": A string containing the definition or answer.
-Do not provide any introductory text, explanation, or ask for clarification.
-"""
-        post_lecture_prompt = f"""
-Your task is to act as a flashcard generator. Based ONLY on the provided course material, generate between 10 and 20 flashcards that summarize and test the most important key concepts *from within* the topic '{event_title}' {course_context}.
+2.  **Generate Quiz Questions:** Using ONLY the provided course material as your knowledge base, generate between 10 and 20 multiple-choice questions that test the most important key concepts, definitions, and applications *from within* the topic '{event_title}'. The questions should verify that a student has understood the main points of the lesson.
 
-You MUST return your response as a single, valid JSON array where each object has the following keys:
-- "question": A string containing the question or term for the flashcard.
-- "answer": A string containing the definition or answer.
-Do not provide any introductory text, explanation, or ask for clarification.
+3.  **Format the Output:** You MUST return your response as a single, valid JSON array. Each object in the array must have the following keys:
+    - "question": A string containing the question about a key concept from the lecture.
+    - "options": An array of four strings representing the multiple-choice options.
+    - "answer": A string containing the exact text of the correct option.
+
+Do not include any introductory text, explanations, or summaries outside of the final JSON output.
 """
 
     print(f"Querying for prerequisites with prompt: '{prereq_prompt}'")
