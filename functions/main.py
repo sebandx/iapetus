@@ -186,7 +186,7 @@ Do not include any introductory text, explanations, or summaries outside of the 
     print(f"Querying for post-lecture with prompt: '{post_lecture_prompt}'")
 
     prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
-    print(f"Query response prereq_response_stream stream: ''{prereq_response_stream}")
+    print(f"Query response prereq_response_stream stream: ''{prereq_response_stream}")    
     prereq_response_text = "".join(
         event["content"]["parts"][0].get("text", "")
         for event in prereq_response_stream
@@ -214,6 +214,8 @@ Do not include any introductory text, explanations, or summaries outside of the 
             "taskType": "pre-lecture"
         })
         print(f"Successfully created a new pre-lecture {generation_type} task for user {user_id}.")
+    else:
+        print(f"no prereq_response_text found")
         
     if post_lecture_response_text:
         post_review_due_date = event_start_date + datetime.timedelta(days=1)
@@ -227,3 +229,6 @@ Do not include any introductory text, explanations, or summaries outside of the 
             "taskType": "post-lecture"
         })
         print(f"Successfully created a new post-lecture {generation_type} task for user {user_id}.")
+    else:
+        print(f"no post_lecture_response_text found")
+
