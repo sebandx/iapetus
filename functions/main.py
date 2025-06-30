@@ -186,6 +186,7 @@ Do not include any introductory text, explanations, or summaries outside of the 
     print(f"Querying for post-lecture with prompt: '{post_lecture_prompt}'")
 
     prereq_response_stream = agent.stream_query(message=prereq_prompt, session_id=session.id, user_id=user_id)
+    print(f"Query response prereq_response_stream stream: ''{prereq_response_stream}")
     prereq_response_text = "".join(
         event["content"]["parts"][0].get("text", "")
         for event in prereq_response_stream
@@ -193,6 +194,7 @@ Do not include any introductory text, explanations, or summaries outside of the 
     )
 
     post_lecture_response_stream = agent.stream_query(message=post_lecture_prompt, session_id=session.id, user_id=user_id)
+    print(f"Query response post_lecture_response_stream stream: ''{post_lecture_response_stream}")
     post_lecture_response_text = "".join(
         event["content"]["parts"][0].get("text", "")
         for event in post_lecture_response_stream
