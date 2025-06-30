@@ -17,31 +17,36 @@ firebase_admin.initialize_app()
 
 PROJECT_ID = os.environ.get("GCLOUD_PROJECT", "lithe-creek-462503-v4")
 LOCATION = os.environ.get("LOCATION", "us-central1")
-AGENT_ENGINE_ID = os.environ.get("AGENT_ENGINE_ID")
+# This is now the fallback agent if a course-specific one is not found.
+DEFAULT_AGENT_ID = os.environ.get("AGENT_ENGINE_ID")
 
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 
+# This dictionary contains the routing logic for your agents.
+COURSE_AGENT_MAP = {
+    "MA135": "projects/lithe-creek-462503-v4/locations/us-central1/ragCorpora/1152921504606846976", # Algebra for Honours Mathematics
+    "MA137": "projects/412470804288/locations/us-central1/reasoningEngines/1230019259946500096", # Calculus 1 for Honours Mathematics
+    # You can add more course codes and their corresponding agent IDs here.
+    # "BU111": "projects/your-project/locations/us-central1/reasoningEngines/your_bu111_agent_id",
+}
+
+
 # --- Helper function to delete existing tasks ---
-# UPDATED: This function is now synchronous to match the Firestore client.
 def delete_tasks_for_event(db, user_id, event_id):
     """Deletes all tasks associated with a given calendar event ID."""
     print(f"Checking for and deleting existing tasks for Event ID: {event_id}")
     tasks_ref = db.collection("users").document(user_id).collection("tasks")
-    
-    # UPDATED: Synchronous .get() call
     tasks_snapshot = tasks_ref.where("relatedCalendarEventId", "==", event_id).get()
     
     if not tasks_snapshot:
         print(f"No existing tasks found for Event ID: {event_id}")
         return
 
-    # Use a batch to delete all found tasks efficiently
     batch = db.batch()
     for doc in tasks_snapshot:
         batch.delete(doc.reference)
     
-    # UPDATED: Synchronous .commit() call
     batch.commit()
     print(f"Successfully deleted {len(tasks_snapshot)} tasks for Event ID: {event_id}")
 
@@ -49,8 +54,7 @@ def delete_tasks_for_event(db, user_id, event_id):
 @functions_framework.cloud_event
 def process_calendar_event(cloud_event: CloudEvent) -> None:
     """
-    A Cloud Function that triggers when a calendar event is created, updated, or deleted.
-    It manages the lifecycle of associated review tasks.
+    A Cloud Function that triggers when a calendar event is written.
     """
     print("Function triggered by a calendar event write.")
     
@@ -69,21 +73,16 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
 
     print(f"Processing Event ID: {event_id} for User ID: {user_id}")
     
-    # Using the standard synchronous Firestore client
     db = firestore.client()
 
-    # --- Handle Event Deletion ---
     firestore_payload = DocumentEventData()
     firestore_payload._pb.ParseFromString(cloud_event.data)
 
     if not firestore_payload.value.fields:
         print(f"Event {event_id} was deleted. Deleting associated tasks.")
-        # UPDATED: Direct synchronous call
         delete_tasks_for_event(db, user_id, event_id)
         return
 
-    # --- Handle Event Creation or Update ---
-    
     event_start_time_str = firestore_payload.value.fields["startTime"].timestamp_value.isoformat()
     event_start_date = datetime.datetime.fromisoformat(event_start_time_str.replace('Z', '+00:00'))
     
@@ -96,10 +95,8 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
         return
 
     print(f"Event {event_id} is upcoming. Syncing tasks...")
-    # UPDATED: Direct synchronous call
     delete_tasks_for_event(db, user_id, event_id)
 
-    # Now, proceed with generating new tasks using the latest data
     event_title = firestore_payload.value.fields["title"].string_value
     course_id = firestore_payload.value.fields["courseId"].string_value
 
@@ -107,30 +104,40 @@ def process_calendar_event(cloud_event: CloudEvent) -> None:
         print("Event data has no title. Exiting task generation.")
         return
 
-    if not AGENT_ENGINE_ID:
-        print("AGENT_ENGINE_ID environment variable not set. Exiting function.")
-        return
-
-    print(f"Querying Agent Engine with title: '{event_title}', to agent: '{AGENT_ENGINE_ID}'")
-
-    session_service = VertexAiSessionService(project=PROJECT_ID,location=LOCATION)
-    session = asyncio.run(session_service.create_session(
-        app_name=AGENT_ENGINE_ID,
-        user_id=user_id,
-    ))
-    agent = agent_engines.get(AGENT_ENGINE_ID)
-    print(f"Querying Agent Engine: '{agent}'")
-
+    # --- UPDATED: Dynamic Agent Selection Logic ---
     course_name, course_code, generation_type = "", "", "flashcards"
+    target_agent_id = DEFAULT_AGENT_ID # Start with the default agent from env vars
+
     if course_id:
         course_ref = db.collection("users").document(user_id).collection("courses").document(course_id)
-        course_doc = course_ref.get() # This is already synchronous
+        course_doc = course_ref.get()
         if course_doc.exists:
             course_data = course_doc.to_dict()
             if course_data:
                 course_name = course_data.get("name", "")
                 course_code = course_data.get("code", "")
                 generation_type = course_data.get("generationType", "flashcards")
+                
+                # Check the map for a course-specific agent ID, overriding the default if found
+                specific_agent_id = COURSE_AGENT_MAP.get(course_code.upper())
+                if specific_agent_id:
+                    target_agent_id = specific_agent_id
+                    print(f"Found specific agent for course '{course_code}': {target_agent_id}")
+
+    if not target_agent_id:
+        print("No target agent ID found (neither course-specific nor default). Exiting.")
+        return
+
+    print(f"Using Agent ID: '{target_agent_id}' for event title: '{event_title}'")
+    
+    # This section remains unchanged, using the dynamically selected `target_agent_id`
+    session_service = VertexAiSessionService(project=PROJECT_ID,location=LOCATION)
+    session = asyncio.run(session_service.create_session(
+        app_name=target_agent_id,
+        user_id=user_id,
+    ))
+    agent = agent_engines.get(target_agent_id)
+    print(f"Querying Agent Engine: '{agent}'")
 
     course_context = f"in the course '{course_name}, {course_code}'" if course_name else ""
 
