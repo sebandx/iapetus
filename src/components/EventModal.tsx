@@ -3,18 +3,30 @@
 import React, { useState, useEffect } from 'react';
 import ConfirmModal from './ConfirmModal';
 
-// --- Interfaces and other component code remain the same ---
-interface Course { id: string; name: string; code?: string; }
+// --- Interfaces for EventModal ---
+interface Course {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (title: string, dateTime: Date, duration: number, courseId: string, eventId: string | null) => void;
   onDelete: (eventId: string) => void;
-  existingEvent: { id: string; title: string; start: Date; extendedProps: { courseId?: string }; } | null;
+  existingEvent: {
+    id: string;
+    title: string;
+    start: Date;
+    end: Date | null;
+    extendedProps: { courseId?: string };
+  } | null;
   selectedDate: Date | null;
   courses: Course[];
 }
 
+// --- EventModal Component ---
 const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDelete, existingEvent, selectedDate, courses }) => {
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('12:00');
@@ -31,6 +43,15 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
             const minutes = startTime.getMinutes().toString().padStart(2, '0');
             setTime(`${hours}:${minutes}`);
             setSelectedCourseId(existingEvent.extendedProps.courseId || '');
+
+            if (existingEvent.end) {
+                const endTime = new Date(existingEvent.end);
+                const durationInMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+                setDuration(durationInMinutes > 0 ? durationInMinutes : 60);
+            } else {
+                setDuration(60);
+            }
+
         } else if (selectedDate) {
             setTitle('');
             const clickedTime = new Date(selectedDate);
@@ -43,9 +64,6 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
     }
   }, [existingEvent, selectedDate, isOpen]);
 
-  // --- THIS IS THE FIX ---
-  // This line is the gatekeeper that was missing. It ensures nothing is rendered
-  // if the modal is not supposed to be open.
   if (!isOpen) {
     return null;
   }
@@ -59,10 +77,10 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
       onSave(title, combinedDateTime, duration, selectedCourseId, existingEvent ? existingEvent.id : null);
       onClose();
     } else {
-      alert('Please enter an event title.');
+      console.error('Please enter an event title.');
     }
   };
-  
+   
   const handleDeleteClick = () => {
     setIsConfirmModalOpen(true);
   };
@@ -87,7 +105,7 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
     cancelButton: { backgroundColor: '#E5E7EB' },
     deleteButton: { backgroundColor: '#EF4444', color: 'white' },
   };
-  
+   
   const dateForDisplay = existingEvent ? existingEvent.start : selectedDate;
 
   return (
@@ -96,9 +114,9 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
         <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.header}>
                 <h2>{existingEvent ? 'Edit Study Event' : 'Add New Study Event'}</h2>
-                {dateForDisplay && <p>Date: {dateForDisplay.toLocaleDateString()}</p>}
+                {dateForDisplay && <p>Date: {new Date(dateForDisplay).toLocaleDateString()}</p>}
             </div>
-            
+             
             <div>
               <label style={styles.label} htmlFor="event-title">Event Title</label>
               <input id="event-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} style={{ ...styles.input, marginBottom: '20px' }} />
@@ -136,8 +154,8 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
             </div>
         </div>
       </div>
-      
-      <ConfirmModal
+       
+      <ConfirmModal 
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={handleConfirmDelete}
@@ -148,4 +166,5 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, onDele
   );
 };
 
+// The default export should be the main component of the file.
 export default EventModal;
