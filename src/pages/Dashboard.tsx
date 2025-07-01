@@ -11,6 +11,7 @@ const TaskIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="non
 const LogoutIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 8H5a2 2 0 01-2-2V6a2 2 0 012-2h8"></path></svg>;
 const HamburgerIcon = () => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
 const CourseIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.25278C12 6.25278 15.5344 3 20 3C23.5 3 24 8 24 8C24 8 23.5 18 20 18C15.5344 18 12 20.7472 12 20.7472M12 6.25278C12 6.25278 8.46556 3 4 3C0.5 3 0 8 0 8C0 8 0.5 18 4 18C8.46556 18 12 20.7472 12 20.7472M12 6.25278V20.7472" transform="scale(0.9) translate(-1, -1)"/></svg>;
+
 const Dashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -49,7 +50,18 @@ const Dashboard = () => {
     navLink: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', borderRadius: '8px', textDecoration: 'none', color: '#374151', fontWeight: 500, transition: 'background-color 0.2s, color 0.2s' },
     logoutButton: { marginTop: 'auto', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', borderRadius: '8px', textDecoration: 'none', color: '#374151', fontWeight: 500, width: '100%' },
     mainContent: { flex: 1, padding: '20px', overflowY: 'auto', marginLeft: '0px', transition: 'margin-left 0.3s' },
-    mobileHeader: { display: 'flex', alignItems: 'center', gap: '15px', padding: '10px 15px', backgroundColor: 'white', borderBottom: '1px solid #E5E7EB', marginBottom: '20px' },
+    mobileHeader: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        padding: '10px 15px',
+        backgroundColor: 'white',
+        borderBottom: '1px solid #E5E7EB',
+        marginBottom: '20px',
+        position: 'sticky', // Make the header sticky
+        top: 0,             // Stick to the top of the viewport
+        zIndex: 98          // Ensure it's above the content but below the sidebar
+      },
     hamburgerButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px' },
     overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 99, opacity: 0, transition: 'opacity 0.3s', pointerEvents: 'none' }
   };
