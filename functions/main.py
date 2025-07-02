@@ -26,7 +26,7 @@ vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 # This dictionary contains the routing logic for your agents.
 COURSE_AGENT_MAP = {
-    "MA135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/6224511246700380160", # Algebra for Honours Mathematics
+    "MA135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/67527606131490816", # Algebra for Honours Mathematics
     "MA137": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/1230019259946500096", # Calculus 1 for Honours Mathematics
     "CS135": "projects/lithe-creek-462503-v4/locations/us-central1/reasoningEngines/9165854384582557696",
 }
